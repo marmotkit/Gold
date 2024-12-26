@@ -798,8 +798,12 @@ def import_participants():
             member_number = str(row.get('會員編號', ''))
             original_reg_number = str(row.get('報名序號', ''))
             
-            # 根據會員編號判斷性別
-            gender = 'F' if member_number.startswith('F') else 'M'
+            # 根據會員編號的第二部分判斷性別
+            member_parts = member_number.split('/')
+            if len(member_parts) > 1:
+                gender = 'F' if member_parts[1].startswith('F') else 'M'
+            else:
+                gender = 'M'
             
             # 檢查是否已存在
             existing = next((p for p in existing_participants if p.member_number == member_number), None)
@@ -847,8 +851,12 @@ def update_all_genders():
         
         for participant in participants:
             member_number = participant.member_number
-            # 根據會員編號判斷性別
-            new_gender = 'F' if member_number.startswith('F') else 'M'
+            # 根據會員編號的第二部分判斷性別
+            member_parts = member_number.split('/')
+            if len(member_parts) > 1:
+                new_gender = 'F' if member_parts[1].startswith('F') else 'M'
+            else:
+                new_gender = 'M'
             
             if participant.gender != new_gender:
                 participant.gender = new_gender
