@@ -802,7 +802,7 @@ def import_participants():
         db.session.rollback()
         return jsonify({'error': str(e)}), 400
 
-@app.route('/api/v1/participants/update-gender', methods=['POST'])
+@app.route('/api/v1/participants/update-gender', methods=['GET', 'POST'])
 def update_all_genders():
     """更新所有參賽者的性別"""
     try:
