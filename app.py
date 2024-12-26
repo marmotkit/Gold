@@ -244,29 +244,31 @@ def get_tournament_groups(tournament_id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/v1/tournaments/<int:tournament_id>/groups', methods=['PUT'])
-def update_tournament_groups(tournament_id):
-    """更新賽事的分組資料"""
+def update_groups(tournament_id):
+    """更新分組"""
     try:
-        groups = request.json
+        data = request.get_json()
         
-        # 更新每個參賽者的分組
-        for group_code, participants in groups.items():
-            # 按差點排序參賽者（由小到大）
-            sorted_participants = sorted(participants, key=lambda x: float(x.get('handicap', 0) or 0))
+        if not data or 'participants' not in data:
+            return jsonify({'error': '無效的請求數據'}), 400
             
-            # 更新每個參賽者的分組和順序
-            for index, participant_data in enumerate(sorted_participants):
-                participant = Participant.query.get(participant_data['id'])
-                if participant:
-                    participant.group_code = group_code
-                    participant.group_order = index  # 保存排序順序
-                    
-        db.session.commit()
-        return jsonify({'message': '分組更新成功'})
+        # 開始資料庫事務
+        with db.session.begin():
+            # 批量更新參賽者分組
+            for p_data in data['participants']:
+                participant = Participant.query.get(p_data['id'])
+                if participant and participant.tournament_id == tournament_id:
+                    participant.group_code = p_data['group_code']
+                    participant.group_order = p_data['group_order']
+            
+            # 提交更改
+            db.session.commit()
+            
+        return jsonify({'message': '分組更新成功'}), 200
         
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"Error in update_tournament_groups: {str(e)}")
+        app.logger.error(f"Error updating groups: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/v1/tournaments/<int:tournament_id>/auto-group', methods=['POST'])
@@ -585,44 +587,48 @@ def export_groups(tournament_id):
         for group_number in sorted(groups.keys(), key=lambda x: int(x)):
             # 添加分組標題
             data.append({
-                '報名序號': f'第 {group_number} 組',
+                '組別': f'{group_number}',
+                '人數': f'{len(groups[group_number])} 人',
+                '報名序號': '',
                 '會員編號': '',
                 '姓名': '',
                 '差點': '',
-                '預分組編號': '',
-                '備註': ''
+                '預分組編號': ''
             })
             
             # 添加該組的參賽者
             for p in groups[group_number]:
                 data.append({
+                    '組別': '',
+                    '人數': '',
                     '報名序號': p.registration_number,
                     '會員編號': p.member_number,
                     '姓名': p.name,
-                    '差點': float(p.handicap) if p.handicap else 0,
-                    '預分組編號': p.pre_group_code or '',
-                    '備註': p.notes or ''
+                    '差點': f'({float(p.handicap)})' if p.handicap else '(0.0)',
+                    '預分組編號': p.pre_group_code or ''
                 })
         
         # 添加未分組的參賽者
         ungrouped = [p for p in participants if not p.group_code]
         if ungrouped:
             data.append({
-                '報名序號': '未分組',
+                '組別': '未分組',
+                '人數': f'{len(ungrouped)} 人',
+                '報名序號': '',
                 '會員編號': '',
                 '姓名': '',
                 '差點': '',
-                '預分組編號': '',
-                '備註': ''
+                '預分組編號': ''
             })
             for p in ungrouped:
                 data.append({
+                    '組別': '',
+                    '人數': '',
                     '報名序號': p.registration_number,
                     '會員編號': p.member_number,
                     '姓名': p.name,
-                    '差點': float(p.handicap) if p.handicap else 0,
-                    '預分組編號': p.pre_group_code or '',
-                    '備註': p.notes or ''
+                    '差點': f'({float(p.handicap)})' if p.handicap else '(0.0)',
+                    '預分組編號': p.pre_group_code or ''
                 })
         
         app.logger.info("Created DataFrame")
@@ -640,12 +646,13 @@ def export_groups(tournament_id):
             worksheet = writer.sheets['分組結果']
             
             # 設置列寬
-            worksheet.set_column('A:A', 12)  # 報名序號
-            worksheet.set_column('B:B', 12)  # 會員編號
-            worksheet.set_column('C:C', 15)  # 姓名
-            worksheet.set_column('D:D', 8)   # 差點
-            worksheet.set_column('E:E', 12)  # 預分組編號
-            worksheet.set_column('F:F', 20)  # 備註
+            worksheet.set_column('A:A', 8)   # 組別
+            worksheet.set_column('B:B', 8)   # 人數
+            worksheet.set_column('C:C', 12)  # 報名序號
+            worksheet.set_column('D:D', 12)  # 會員編號
+            worksheet.set_column('E:E', 15)  # 姓名
+            worksheet.set_column('F:F', 10)  # 差點
+            worksheet.set_column('G:G', 12)  # 預分組編號
             
             # 添加標題格式
             header_format = workbook.add_format({
@@ -664,17 +671,27 @@ def export_groups(tournament_id):
                 'align': 'left',
                 'border': 1
             })
+
+            # 添加一般儲存格格式
+            cell_format = workbook.add_format({
+                'align': 'left',
+                'valign': 'vcenter',
+                'border': 1
+            })
             
             # 應用標題格式
             for col_num, value in enumerate(df.columns.values):
                 worksheet.write(0, col_num, value, header_format)
             
-            # 應用分組標題格式
+            # 應用分組標題和儲存格格式
             row_num = 1
             for index, row in df.iterrows():
-                if '組' in str(row['報名序號']) or row['報名序號'] == '未分組':
+                if row['組別']:  # 分組標題行
                     for col_num in range(len(df.columns)):
                         worksheet.write(row_num, col_num, row.iloc[col_num], group_header_format)
+                else:  # 參賽者資料行
+                    for col_num in range(len(df.columns)):
+                        worksheet.write(row_num, col_num, row.iloc[col_num], cell_format)
                 row_num += 1
         
         app.logger.info("Excel file created successfully")

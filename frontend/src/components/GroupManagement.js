@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import {
   Button,
   Table,
@@ -28,75 +29,56 @@ import config from '../config';
 
 function GroupManagement({ tournament }) {
   const [participants, setParticipants] = useState([]);
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [autoGroupDialogOpen, setAutoGroupDialogOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [participantToDelete, setParticipantToDelete] = useState(null);
-  const [autoGroupDialogOpen, setAutoGroupDialogOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [groups, setGroups] = useState({
+    '未分組': [],
+  });
 
-  // 獲取分組結果
-  const fetchGroups = async () => {
-    try {
-      const response = await fetch(`${config.API_BASE_URL}/api/v1/tournaments/${tournament.id}/groups`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch groups');
-      }
-      const data = await response.json();
-      
-      // 將參賽者按差點排序（每組單獨排序）
-      const sortedData = data.map(participant => {
-        const groupCode = participant.group_code || '';
-        return {
-          ...participant,
-          handicap: parseFloat(participant.handicap || 0)  // 確保差點是數字
-        };
-      }).sort((a, b) => {
-        // 先按組別分組
-        if (a.group_code !== b.group_code) {
-          return (a.group_code || '').localeCompare(b.group_code || '');
-        }
-        // 同組內按差點排序
-        return a.handicap - b.handicap;
-      });
-      
-      setParticipants(sortedData || []);
-    } catch (error) {
-      console.error('Error fetching groups:', error);
-    }
-  };
-
+  // 獲取參賽者數據
   useEffect(() => {
-    if (tournament?.id) {
-      fetchGroups();
-    }
+    fetchParticipants();
   }, [tournament]);
 
-  // 自動分組
-  const handleAutoGroup = async () => {
+  const fetchParticipants = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${config.API_BASE_URL}/api/v1/tournaments/${tournament.id}/auto-group`, {
-        method: 'POST',
-      });
+      const response = await fetch(
+        `${config.API_BASE_URL}/api/v1/tournaments/${tournament.id}/participants`
+      );
       if (!response.ok) {
-        throw new Error('Failed to auto group');
+        throw new Error('獲取參賽者失敗');
       }
       const data = await response.json();
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      // 重新獲取分組結果
-      await fetchGroups();
-      setSnackbarMessage('自動分組完成');
-      setSnackbarSeverity('success');
-      setSnackbarOpen(true);
-      setAutoGroupDialogOpen(false);
+      
+      // 初始化分組數據
+      const newGroups = {
+        '未分組': []
+      };
+      
+      // 將參賽者按分組整理
+      data.forEach(participant => {
+        const groupCode = participant.group_code || '未分組';
+        if (!newGroups[groupCode]) {
+          newGroups[groupCode] = [];
+        }
+        newGroups[groupCode].push(participant);
+      });
+
+      // 確保每個分組內的參賽者按 group_order 排序
+      Object.keys(newGroups).forEach(groupCode => {
+        newGroups[groupCode].sort((a, b) => (a.group_order || 0) - (b.group_order || 0));
+      });
+
+      setGroups(newGroups);
+      setParticipants(data);
     } catch (error) {
-      console.error('Error in auto grouping:', error);
-      setSnackbarMessage(`自動分組失敗：${error.message}`);
+      console.error('Error fetching participants:', error);
+      setSnackbarMessage('獲取參賽者失敗');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
     } finally {
@@ -104,42 +86,79 @@ function GroupManagement({ tournament }) {
     }
   };
 
-  // 保存分組結果
+  // 處理拖放結束事件
+  const handleDragEnd = (result) => {
+    const { source, destination } = result;
+
+    // 如果沒有目標或目標與來源相同，不做任何操作
+    if (!destination || 
+        (source.droppableId === destination.droppableId && 
+         source.index === destination.index)) {
+      return;
+    }
+
+    // 複製當前分組狀態
+    const newGroups = { ...groups };
+
+    // 從來源分組中移除參賽者
+    const [participant] = newGroups[source.droppableId].splice(source.index, 1);
+
+    // 確保目標分組存在
+    if (!newGroups[destination.droppableId]) {
+      newGroups[destination.droppableId] = [];
+    }
+
+    // 將參賽者添加到目標分組
+    newGroups[destination.droppableId].splice(destination.index, 0, participant);
+
+    // 更新分組狀態
+    setGroups(newGroups);
+    setHasUnsavedChanges(true);
+  };
+
+  // 保存分組
   const handleSaveGroups = async () => {
     try {
       setLoading(true);
-      // 將參賽者資料轉換為以分組為鍵的對象
-      const groupedParticipants = participants.reduce((acc, participant) => {
-        const groupCode = participant.group_code || 'ungrouped';
-        if (!acc[groupCode]) {
-          acc[groupCode] = [];
-        }
-        acc[groupCode].push(participant);
-        return acc;
-      }, {});
 
-      const response = await fetch(`${config.API_BASE_URL}/api/v1/tournaments/${tournament.id}/groups`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(groupedParticipants),
+      // 準備要發送的數據
+      const updatedParticipants = [];
+      Object.entries(groups).forEach(([groupCode, participants]) => {
+        participants.forEach((participant, index) => {
+          updatedParticipants.push({
+            id: participant.id,
+            group_code: groupCode === '未分組' ? null : groupCode,
+            group_order: index
+          });
+        });
       });
+
+      // 發送更新請求
+      const response = await fetch(
+        `${config.API_BASE_URL}/api/v1/tournaments/${tournament.id}/groups`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ participants: updatedParticipants }),
+        }
+      );
+
       if (!response.ok) {
-        throw new Error('Failed to save groups');
+        throw new Error('保存分組失敗');
       }
-      const data = await response.json();
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      // 重新獲取分組結果
-      await fetchGroups();
-      setSnackbarMessage('儲存分組成功');
+
+      setSnackbarMessage('保存成功');
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
+      setHasUnsavedChanges(false);
+
+      // 重新獲取最新數據
+      await fetchParticipants();
     } catch (error) {
       console.error('Error saving groups:', error);
-      setSnackbarMessage(`儲存分組失敗：${error.message}`);
+      setSnackbarMessage('保存失敗');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
     } finally {
@@ -194,47 +213,56 @@ function GroupManagement({ tournament }) {
     }
   };
 
-  // 按分組整理參賽者
-  const groupedParticipants = {};
-  if (participants && Array.isArray(participants)) {
-    participants.forEach(participant => {
-      const groupNumber = participant.group_code || 'None';
-      if (!groupedParticipants[groupNumber]) {
-        groupedParticipants[groupNumber] = [];
-      }
-      groupedParticipants[groupNumber].push(participant);
-    });
-  }
+  // 添加新分組
+  const handleAddGroup = () => {
+    const groupNumbers = Object.keys(groups)
+      .filter(key => key !== '未分組')
+      .map(key => parseInt(key.split(' ')[1]))
+      .filter(num => !isNaN(num));
 
-  // 更新備註
-  const handleNotesChange = async (participantId, notes) => {
+    const maxGroupNumber = Math.max(0, ...groupNumbers);
+    const newGroupCode = `第 ${maxGroupNumber + 1} 組`;
+    
+    setGroups(prev => ({
+      ...prev,
+      [newGroupCode]: []
+    }));
+    setHasUnsavedChanges(true);
+  };
+
+  // 刪除分組
+  const handleDeleteGroup = (groupCode) => {
+    const newGroups = { ...groups };
+    // 將該分組的參賽者移到未分組
+    newGroups['未分組'] = [...newGroups['未分組'], ...newGroups[groupCode]];
+    delete newGroups[groupCode];
+    setGroups(newGroups);
+    setHasUnsavedChanges(true);
+  };
+
+  // 自動分組
+  const handleAutoGroup = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${config.API_BASE_URL}/api/v1/participants/${participantId}/notes`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ notes }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update notes');
-      }
-
-      // 更新本地狀態
-      setParticipants(prevParticipants =>
-        prevParticipants.map(p =>
-          p.id === participantId ? { ...p, notes } : p
-        )
+      const response = await fetch(
+        `${config.API_BASE_URL}/api/v1/tournaments/${tournament.id}/auto-group`,
+        { method: 'POST' }
       );
 
-      setSnackbarMessage('備註更新成功');
+      if (!response.ok) {
+        throw new Error('自動分組失敗');
+      }
+
+      setAutoGroupDialogOpen(false);
+      setSnackbarMessage('自動分組完成');
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
+
+      // 重新獲取參賽者數據
+      await fetchParticipants();
     } catch (error) {
-      console.error('Error updating notes:', error);
-      setSnackbarMessage('備註更新失敗');
+      console.error('Error in auto grouping:', error);
+      setSnackbarMessage('自動分組失敗');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
     } finally {
@@ -242,26 +270,81 @@ function GroupManagement({ tournament }) {
     }
   };
 
-  const renderParticipantRow = (participant) => (
-    <TableRow key={participant.id}>
-      <TableCell>{participant.registration_number}</TableCell>
-      <TableCell>{participant.member_number}</TableCell>
-      <TableCell>{participant.name}</TableCell>
-      <TableCell>{participant.handicap}</TableCell>
-      <TableCell>{participant.pre_group_code}</TableCell>
-      <TableCell>
-        <TextField
-          value={participant.notes || ''}
-          onChange={(e) => handleNotesChange(participant.id, e.target.value)}
-          placeholder="備註"
-          variant="standard"
-          fullWidth
-        />
-      </TableCell>
-    </TableRow>
+  // 渲染分組
+  const renderGroup = (groupCode, participants, provided) => (
+    <Paper 
+      {...provided.droppableProps}
+      ref={provided.innerRef}
+      sx={{ 
+        m: 1, 
+        p: 1,
+        minHeight: 100,
+        backgroundColor: groupCode === '未分組' ? '#fff3e0' : '#fff'
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        <Typography variant="h6">
+          {groupCode}
+          <Chip 
+            label={`${participants.length} 人`} 
+            size="small" 
+            sx={{ ml: 1 }}
+          />
+        </Typography>
+        {groupCode !== '未分組' && (
+          <Button
+            size="small"
+            startIcon={<DeleteIcon />}
+            onClick={() => handleDeleteGroup(groupCode)}
+          >
+            刪除分組
+          </Button>
+        )}
+      </Box>
+      {participants.map((participant, index) => (
+        <Draggable
+          key={participant.id}
+          draggableId={participant.id.toString()}
+          index={index}
+        >
+          {(provided) => (
+            <Paper
+              ref={provided.innerRef}
+              {...provided.draggableProps}
+              {...provided.dragHandleProps}
+              sx={{ 
+                p: 1, 
+                mb: 1, 
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                backgroundColor: '#f5f5f5'
+              }}
+            >
+              <Box>
+                <Typography variant="body2" color="textSecondary">
+                  {participant.registration_number} / {participant.member_number}
+                </Typography>
+                <Typography>
+                  {participant.name} ({participant.handicap})
+                </Typography>
+              </Box>
+              {participant.pre_group_code && (
+                <Chip 
+                  label={`預分組: ${participant.pre_group_code}`}
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                />
+              )}
+            </Paper>
+          )}
+        </Draggable>
+      ))}
+      {provided.placeholder}
+    </Paper>
   );
 
-  // 渲染分組結果
   return (
     <div>
       <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
@@ -276,7 +359,7 @@ function GroupManagement({ tournament }) {
         <Button
           variant="contained"
           onClick={handleSaveGroups}
-          disabled={loading}
+          disabled={loading || !hasUnsavedChanges}
           startIcon={<SaveIcon />}
         >
           儲存分組
@@ -290,54 +373,46 @@ function GroupManagement({ tournament }) {
         >
           匯出 Excel
         </Button>
+        <Button
+          variant="outlined"
+          onClick={handleAddGroup}
+          disabled={loading}
+        >
+          新增分組
+        </Button>
       </Box>
 
       {loading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', m: 2 }}>
           <CircularProgress />
         </Box>
       )}
 
-      {Object.entries(groupedParticipants).map(([groupNumber, groupParticipants]) => (
-        <Paper key={groupNumber} sx={{ mb: 2, p: 2 }}>
-          <Typography variant="h6" gutterBottom>
-            {groupNumber === 'None' ? '未分組' : `第 ${groupNumber} 組`}
-          </Typography>
-          <TableContainer component={Paper} style={{ marginTop: '20px' }}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>報名序號</TableCell>
-                  <TableCell>會員編號</TableCell>
-                  <TableCell>姓名</TableCell>
-                  <TableCell>差點</TableCell>
-                  <TableCell>預分組編號</TableCell>
-                  <TableCell>備註</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {groupParticipants.map(renderParticipantRow)}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Paper>
-      ))}
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Grid container>
+          {Object.entries(groups).map(([groupCode, participants]) => (
+            <Grid item xs={12} md={6} lg={4} key={groupCode}>
+              <Droppable droppableId={groupCode}>
+                {(provided) => renderGroup(groupCode, participants, provided)}
+              </Droppable>
+            </Grid>
+          ))}
+        </Grid>
+      </DragDropContext>
 
-      {/* 自動分組確認對話框 */}
       <Dialog open={autoGroupDialogOpen} onClose={() => setAutoGroupDialogOpen(false)}>
-        <DialogTitle>確認自動分組</DialogTitle>
+        <DialogTitle>自動分組設定</DialogTitle>
         <DialogContent>
-          確定要執行自動分組嗎？這將會重新分配所有參賽者的組別。
+          {/* 自動分組設定的內容 */}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAutoGroupDialogOpen(false)}>取消</Button>
-          <Button onClick={handleAutoGroup} variant="contained" color="primary">
-            確定
+          <Button onClick={handleAutoGroup} variant="contained">
+            開始分組
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Snackbar for messages */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={6000}

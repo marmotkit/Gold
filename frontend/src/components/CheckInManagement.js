@@ -189,7 +189,15 @@ function CheckInManagement({ tournament }) {
   const sortedGroups = Object.keys(groupedParticipants).sort((a, b) => {
     if (a === 'None') return 1;
     if (b === 'None') return -1;
-    return a.localeCompare(b);
+    
+    // 從分組代碼中提取數字
+    const getGroupNumber = (code) => {
+      const match = code.match(/\d+/);
+      return match ? parseInt(match[0]) : 0;
+    };
+    
+    // 按數字大小排序
+    return getGroupNumber(a) - getGroupNumber(b);
   });
 
   // 渲染表格行
