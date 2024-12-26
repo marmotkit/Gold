@@ -765,6 +765,68 @@ def update_participant_handicap(participant_id):
         app.logger.error(f"Error updating participant handicap: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/v1/participants/import', methods=['POST'])
+def import_participants():
+    """從 Excel 檔案匯入參賽者"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file uploaded'}), 400
+        
+        file = request.files['file']
+        tournament_id = request.form.get('tournament_id')
+        
+        if not file or not tournament_id:
+            return jsonify({'error': 'Missing required data'}), 400
+            
+        df = pd.read_excel(file)
+        
+        for _, row in df.iterrows():
+            registration_number = str(row.get('報名序號', ''))
+            # 從報名序號判斷性別（例如：A12/F40 中的 F40 表示女生）
+            gender = 'F' if '/' in registration_number and registration_number.split('/')[1].startswith('F') else 'M'
+            
+            participant = Participant(
+                tournament_id=tournament_id,
+                registration_number=registration_number,
+                member_number=str(row.get('會員編號', '')),
+                name=str(row.get('姓名', '')),
+                handicap=str(row.get('差點', '')),
+                pre_group_code=str(row.get('預分組', '')),
+                gender=gender
+            )
+            db.session.add(participant)
+            
+        db.session.commit()
+        return jsonify({'message': 'Participants imported successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/v1/participants/update-gender', methods=['POST'])
+def update_all_genders():
+    """更新所有參賽者的性別"""
+    try:
+        participants = Participant.query.all()
+        updated_count = 0
+        
+        for participant in participants:
+            registration_number = participant.registration_number
+            # 從報名序號判斷性別（例如：A12/F40 中的 F40 表示女生）
+            new_gender = 'F' if '/' in registration_number and registration_number.split('/')[1].startswith('F') else 'M'
+            
+            if participant.gender != new_gender:
+                participant.gender = new_gender
+                updated_count += 1
+        
+        db.session.commit()
+        return jsonify({
+            'message': f'Successfully updated {updated_count} participants',
+            'updated_count': updated_count
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
+
 # 靜態文件路由必須放在最後
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
