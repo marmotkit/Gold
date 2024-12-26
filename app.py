@@ -868,14 +868,14 @@ def update_all_genders():
         updated_count = 0
         
         for participant in participants:
-            registration_number = participant.original_number or participant.registration_number
             # 根據會員編號判斷性別：M 開頭是男生，其他是女生
-            gender = 'M' if participant.member_number.startswith('M') else 'F'
+            member_number = participant.member_number
+            new_gender = 'M' if member_number and member_number.startswith('M') else 'F'
             
-            if participant.gender != gender:
-                participant.gender = gender
+            if participant.gender != new_gender:
+                participant.gender = new_gender
                 updated_count += 1
-                print(f"更新參賽者性別：{participant.name}, 會員編號：{participant.member_number}, 新性別：{gender}")
+                print(f"更新參賽者性別：{participant.name}, 會員編號：{member_number}, 新性別：{new_gender}")
         
         db.session.commit()
         return jsonify({
