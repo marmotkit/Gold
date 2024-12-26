@@ -903,6 +903,33 @@ def serve(path):
     except:
         return jsonify({'error': '找不到檔案'}), 404
 
+@app.route('/api/v1/debug/participants', methods=['GET'])
+def debug_participants():
+    """檢查參賽者資料"""
+    try:
+        participants = Participant.query.all()
+        result = []
+        
+        for p in participants:
+            result.append({
+                'name': p.name,
+                'registration_number': p.registration_number,
+                'original_number': p.original_number,
+                'member_number': p.member_number,
+                'gender': p.gender
+            })
+            print(f"姓名：{p.name}")
+            print(f"  報名序號：{p.registration_number}")
+            print(f"  原始序號：{p.original_number}")
+            print(f"  會員編號：{p.member_number}")
+            print(f"  性別：{p.gender}")
+            print("---")
+        
+        return jsonify(result)
+    except Exception as e:
+        print(f"錯誤：{str(e)}")
+        return jsonify({'error': str(e)}), 400
+
 if __name__ == '__main__':
     # 確保 instance 目錄存在
     basedir = os.path.abspath(os.path.dirname(__file__))
