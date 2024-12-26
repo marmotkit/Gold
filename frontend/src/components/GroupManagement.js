@@ -1,28 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import {
   Button,
-  Grid,
-  Paper,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  Paper,
   Typography,
   Box,
-  Snackbar,
-  Alert,
-  IconButton,
+  Grid,
+  CircularProgress,
+  TextField,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  Snackbar,
+  Alert,
   Chip,
-  CircularProgress,
-  TextField
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import SaveIcon from '@mui/icons-material/Save';
+import DownloadIcon from '@mui/icons-material/Download';
 import config from '../config';
 
 function GroupManagement({ tournament }) {
@@ -146,6 +147,53 @@ function GroupManagement({ tournament }) {
     }
   };
 
+  // 導出分組結果為 Excel
+  const handleExportGroups = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${config.API_BASE_URL}/api/v1/tournaments/${tournament.id}/groups/export`,
+        { method: 'GET' }
+      );
+
+      if (!response.ok) {
+        throw new Error('導出失敗');
+      }
+
+      // 獲取文件名
+      const contentDisposition = response.headers.get('content-disposition');
+      let filename = '分組結果.xlsx';
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, '');
+        }
+      }
+
+      // 下載文件
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      setSnackbarMessage('導出成功');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error('Error exporting groups:', error);
+      setSnackbarMessage('導出失敗');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 按分組整理參賽者
   const groupedParticipants = {};
   if (participants && Array.isArray(participants)) {
@@ -216,27 +264,32 @@ function GroupManagement({ tournament }) {
   // 渲染分組結果
   return (
     <div>
-      <Box sx={{ mb: 2 }}>
-        <Grid container spacing={2}>
-          <Grid item>
-            <Button
-              variant="contained"
-              onClick={() => setAutoGroupDialogOpen(true)}
-              disabled={loading}
-            >
-              自動分組
-            </Button>
-          </Grid>
-          <Grid item>
-            <Button
-              variant="contained"
-              onClick={handleSaveGroups}
-              disabled={loading}
-            >
-              保存分組
-            </Button>
-          </Grid>
-        </Grid>
+      <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+        <Button
+          variant="contained"
+          onClick={() => setAutoGroupDialogOpen(true)}
+          disabled={loading}
+          color="primary"
+        >
+          自動分組
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleSaveGroups}
+          disabled={loading}
+          startIcon={<SaveIcon />}
+        >
+          儲存分組
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleExportGroups}
+          disabled={loading}
+          startIcon={<DownloadIcon />}
+          color="secondary"
+        >
+          匯出 Excel
+        </Button>
       </Box>
 
       {loading && (

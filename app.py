@@ -6,6 +6,8 @@ from datetime import datetime
 import os
 import pandas as pd
 import re
+import io
+from flask import send_file
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -552,6 +554,147 @@ def update_participant_notes(participant_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/v1/tournaments/<int:tournament_id>/groups/export', methods=['GET'])
+def export_groups(tournament_id):
+    """導出分組結果為 Excel"""
+    try:
+        app.logger.info(f"Starting export for tournament {tournament_id}")
+        
+        # 獲取所有參賽者並按分組和分組內順序排序
+        participants = Participant.query.filter_by(tournament_id=tournament_id).order_by(
+            Participant.group_code.nulls_last(),
+            Participant.group_order
+        ).all()
+        
+        app.logger.info(f"Found {len(participants)} participants")
+
+        # 按分組整理數據
+        groups = {}
+        for p in participants:
+            if p.group_code:
+                group_number = p.group_code.split(' ')[-1]  # 從 "第 X 組" 中提取數字
+                if group_number not in groups:
+                    groups[group_number] = []
+                groups[group_number].append(p)
+
+        # 創建 DataFrame 數據
+        data = []
+        
+        # 先添加已分組的參賽者
+        for group_number in sorted(groups.keys(), key=lambda x: int(x)):
+            # 添加分組標題
+            data.append({
+                '報名序號': f'第 {group_number} 組',
+                '會員編號': '',
+                '姓名': '',
+                '差點': '',
+                '預分組編號': '',
+                '備註': ''
+            })
+            
+            # 添加該組的參賽者
+            for p in groups[group_number]:
+                data.append({
+                    '報名序號': p.registration_number,
+                    '會員編號': p.member_number,
+                    '姓名': p.name,
+                    '差點': float(p.handicap) if p.handicap else 0,
+                    '預分組編號': p.pre_group_code or '',
+                    '備註': p.notes or ''
+                })
+        
+        # 添加未分組的參賽者
+        ungrouped = [p for p in participants if not p.group_code]
+        if ungrouped:
+            data.append({
+                '報名序號': '未分組',
+                '會員編號': '',
+                '姓名': '',
+                '差點': '',
+                '預分組編號': '',
+                '備註': ''
+            })
+            for p in ungrouped:
+                data.append({
+                    '報名序號': p.registration_number,
+                    '會員編號': p.member_number,
+                    '姓名': p.name,
+                    '差點': float(p.handicap) if p.handicap else 0,
+                    '預分組編號': p.pre_group_code or '',
+                    '備註': p.notes or ''
+                })
+        
+        app.logger.info("Created DataFrame")
+        df = pd.DataFrame(data)
+        
+        # 創建一個 BytesIO 對象來保存 Excel 文件
+        excel_file = io.BytesIO()
+        
+        # 使用 ExcelWriter 來設置格式
+        with pd.ExcelWriter(excel_file, engine='xlsxwriter') as writer:
+            df.to_excel(writer, sheet_name='分組結果', index=False)
+            
+            # 獲取 workbook 和 worksheet 對象
+            workbook = writer.book
+            worksheet = writer.sheets['分組結果']
+            
+            # 設置列寬
+            worksheet.set_column('A:A', 12)  # 報名序號
+            worksheet.set_column('B:B', 12)  # 會員編號
+            worksheet.set_column('C:C', 15)  # 姓名
+            worksheet.set_column('D:D', 8)   # 差點
+            worksheet.set_column('E:E', 12)  # 預分組編號
+            worksheet.set_column('F:F', 20)  # 備註
+            
+            # 添加標題格式
+            header_format = workbook.add_format({
+                'bold': True,
+                'text_wrap': True,
+                'valign': 'vcenter',
+                'align': 'center',
+                'bg_color': '#D9E1F2',
+                'border': 1
+            })
+            
+            # 添加分組標題格式
+            group_header_format = workbook.add_format({
+                'bold': True,
+                'bg_color': '#E2EFDA',
+                'align': 'left',
+                'border': 1
+            })
+            
+            # 應用標題格式
+            for col_num, value in enumerate(df.columns.values):
+                worksheet.write(0, col_num, value, header_format)
+            
+            # 應用分組標題格式
+            row_num = 1
+            for index, row in df.iterrows():
+                if '組' in str(row['報名序號']) or row['報名序號'] == '未分組':
+                    for col_num in range(len(df.columns)):
+                        worksheet.write(row_num, col_num, row.iloc[col_num], group_header_format)
+                row_num += 1
+        
+        app.logger.info("Excel file created successfully")
+        
+        # 將文件指針移到開頭
+        excel_file.seek(0)
+        
+        # 生成文件名（包含時間戳）
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'分組結果_{timestamp}.xlsx'
+        
+        return send_file(
+            excel_file,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        app.logger.error(f"Error exporting groups: {str(e)}")
+        return jsonify({'error': f"導出失敗: {str(e)}"}), 500
 
 # 靜態文件路由必須放在最後
 @app.route('/', defaults={'path': ''})
