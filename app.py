@@ -403,7 +403,7 @@ def import_participants_from_excel():
             member_number = str(row.get('會員編號', '')).strip()  # 移除空白
             original_reg_number = str(row.get('報名序號', '')).strip()  # 移除空白
             name = str(row.get('姓名', '')).strip()  # 移除空白
-            gender = str(row.get('性別', '')).strip()  # 直接從 Excel 讀取性別
+            gender = str(row.get('性別', '')).strip()  # 直接使用 Excel 的性別欄位
             
             print(f"處理參賽者：{name}, 會員編號：{member_number}, 報名序號：{original_reg_number}, 性別：{gender}")
             
@@ -805,9 +805,9 @@ def import_participants_from_excel():
             
             print(f"處理參賽者：{name}, 會員編號：{member_number}, 報名序號：{original_reg_number}")
             
-            # 從會員編號判斷性別
-            gender = 'F' if member_number.startswith('F') else 'M'
-            print(f"判斷性別：{gender} (根據會員編號：{member_number})")
+            # 直接使用 Excel 的性別欄位
+            gender = str(row.get('性別', '')).strip()
+            print(f"判斷性別：{gender} (根據 Excel 的性別欄位)")
             
             # 檢查是否已存在
             existing = next((p for p in existing_participants if p.name == name), None)
@@ -867,14 +867,13 @@ def update_all_genders():
         updated_count = 0
         
         for participant in participants:
-            # 從會員編號判斷性別
-            member_number = participant.member_number
-            new_gender = 'F' if member_number.startswith('F') else 'M'
+            # 直接使用 Excel 的性別欄位
+            gender = participant.gender
             
-            if participant.gender != new_gender:
-                participant.gender = new_gender
+            if participant.gender != gender:
+                participant.gender = gender
                 updated_count += 1
-                print(f"更新參賽者性別：{participant.name}, 會員編號：{member_number}, 新性別：{new_gender}")
+                print(f"更新參賽者性別：{participant.name}, 會員編號：{participant.member_number}, 新性別：{gender}")
         
         db.session.commit()
         return jsonify({
