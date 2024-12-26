@@ -19,7 +19,8 @@ import {
   DialogContent,
   DialogActions,
   Chip,
-  CircularProgress
+  CircularProgress,
+  TextField
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import config from '../config';
@@ -43,7 +44,24 @@ function GroupManagement({ tournament }) {
         throw new Error('Failed to fetch groups');
       }
       const data = await response.json();
-      setParticipants(data || []);
+      
+      // 將參賽者按差點排序（每組單獨排序）
+      const sortedData = data.map(participant => {
+        const groupCode = participant.group_code || '';
+        return {
+          ...participant,
+          handicap: parseFloat(participant.handicap || 0)  // 確保差點是數字
+        };
+      }).sort((a, b) => {
+        // 先按組別分組
+        if (a.group_code !== b.group_code) {
+          return (a.group_code || '').localeCompare(b.group_code || '');
+        }
+        // 同組內按差點排序
+        return a.handicap - b.handicap;
+      });
+      
+      setParticipants(sortedData || []);
     } catch (error) {
       console.error('Error fetching groups:', error);
     }
@@ -89,12 +107,22 @@ function GroupManagement({ tournament }) {
   const handleSaveGroups = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${config.API_BASE_URL}/api/v1/tournaments/${tournament.id}/save-groups`, {
-        method: 'POST',
+      // 將參賽者資料轉換為以分組為鍵的對象
+      const groupedParticipants = participants.reduce((acc, participant) => {
+        const groupCode = participant.group_code || 'ungrouped';
+        if (!acc[groupCode]) {
+          acc[groupCode] = [];
+        }
+        acc[groupCode].push(participant);
+        return acc;
+      }, {});
+
+      const response = await fetch(`${config.API_BASE_URL}/api/v1/tournaments/${tournament.id}/groups`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ participants }),
+        body: JSON.stringify(groupedParticipants),
       });
       if (!response.ok) {
         throw new Error('Failed to save groups');
@@ -129,6 +157,61 @@ function GroupManagement({ tournament }) {
       groupedParticipants[groupNumber].push(participant);
     });
   }
+
+  // 更新備註
+  const handleNotesChange = async (participantId, notes) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${config.API_BASE_URL}/api/v1/participants/${participantId}/notes`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ notes }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update notes');
+      }
+
+      // 更新本地狀態
+      setParticipants(prevParticipants =>
+        prevParticipants.map(p =>
+          p.id === participantId ? { ...p, notes } : p
+        )
+      );
+
+      setSnackbarMessage('備註更新成功');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error('Error updating notes:', error);
+      setSnackbarMessage('備註更新失敗');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderParticipantRow = (participant) => (
+    <TableRow key={participant.id}>
+      <TableCell>{participant.registration_number}</TableCell>
+      <TableCell>{participant.member_number}</TableCell>
+      <TableCell>{participant.name}</TableCell>
+      <TableCell>{participant.handicap}</TableCell>
+      <TableCell>{participant.pre_group_code}</TableCell>
+      <TableCell>
+        <TextField
+          value={participant.notes || ''}
+          onChange={(e) => handleNotesChange(participant.id, e.target.value)}
+          placeholder="備註"
+          variant="standard"
+          fullWidth
+        />
+      </TableCell>
+    </TableRow>
+  );
 
   // 渲染分組結果
   return (
@@ -167,8 +250,8 @@ function GroupManagement({ tournament }) {
           <Typography variant="h6" gutterBottom>
             {groupNumber === 'None' ? '未分組' : `第 ${groupNumber} 組`}
           </Typography>
-          <TableContainer>
-            <Table size="small">
+          <TableContainer component={Paper} style={{ marginTop: '20px' }}>
+            <Table>
               <TableHead>
                 <TableRow>
                   <TableCell>報名序號</TableCell>
@@ -176,18 +259,11 @@ function GroupManagement({ tournament }) {
                   <TableCell>姓名</TableCell>
                   <TableCell>差點</TableCell>
                   <TableCell>預分組編號</TableCell>
+                  <TableCell>備註</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {groupParticipants.map((participant) => (
-                  <TableRow key={participant.id}>
-                    <TableCell>{participant.registration_number}</TableCell>
-                    <TableCell>{participant.member_number}</TableCell>
-                    <TableCell>{participant.name}</TableCell>
-                    <TableCell>{participant.handicap}</TableCell>
-                    <TableCell>{participant.pre_group_code}</TableCell>
-                  </TableRow>
-                ))}
+                {groupParticipants.map(renderParticipantRow)}
               </TableBody>
             </Table>
           </TableContainer>

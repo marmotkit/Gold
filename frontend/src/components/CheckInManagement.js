@@ -16,7 +16,9 @@ import {
   AccordionSummary,
   AccordionDetails,
   Container,
-  CircularProgress
+  CircularProgress,
+  TextField,
+  Chip
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import config from '../config';
@@ -118,6 +120,46 @@ function CheckInManagement({ tournament }) {
     }
   };
 
+  // 更新備註
+  const handleNotesChange = async (participantId, notes) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${config.API_BASE_URL}/api/v1/participants/${participantId}/notes`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ notes }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update notes');
+      }
+
+      // 更新本地狀態
+      setParticipants(prevParticipants =>
+        prevParticipants.map(p =>
+          p.id === participantId ? { ...p, notes } : p
+        )
+      );
+
+      setSnackbar({
+        open: true,
+        message: '備註更新成功',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error updating notes:', error);
+      setSnackbar({
+        open: true,
+        message: '備註更新失敗',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 按分組整理參賽者
   const groupedParticipants = participants.reduce((acc, participant) => {
     const groupCode = participant.group_code || 'None';
@@ -154,33 +196,35 @@ function CheckInManagement({ tournament }) {
   const renderTableRow = (participant) => (
     <TableRow key={participant.id}>
       <TableCell>{participant.registration_number}</TableCell>
-      <TableCell>{participant.name}</TableCell>
       <TableCell>{participant.member_number}</TableCell>
+      <TableCell>{participant.name}</TableCell>
       <TableCell>{participant.handicap}</TableCell>
-      <TableCell>{participant.check_in_status === 'checked_in' ? '已報到' : '未報到'}</TableCell>
+      <TableCell>{participant.group_code || '未分組'}</TableCell>
       <TableCell>
-        {participant.check_in_time ? new Date(participant.check_in_time).toLocaleString('zh-TW') : '-'}
+        <TextField
+          value={participant.notes || ''}
+          onChange={(e) => handleNotesChange(participant.id, e.target.value)}
+          placeholder="備註"
+          variant="standard"
+          fullWidth
+        />
       </TableCell>
       <TableCell>
         {participant.check_in_status === 'checked_in' ? (
-          <Button
-            variant="contained"
-            color="secondary"
-            onClick={() => handleCancelCheckIn(participant.id)}
-            disabled={loading}
-          >
-            取消報到
-          </Button>
+          <Chip label="已報到" color="success" />
         ) : (
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={() => handleCheckIn(participant.id)}
-            disabled={loading}
-          >
-            報到
-          </Button>
+          <Chip label="未報到" color="default" />
         )}
+      </TableCell>
+      <TableCell>
+        <Button
+          variant="contained"
+          color={participant.check_in_status === 'checked_in' ? "warning" : "primary"}
+          onClick={() => participant.check_in_status === 'checked_in' ? handleCancelCheckIn(participant.id) : handleCheckIn(participant.id)}
+          disabled={loading}
+        >
+          {participant.check_in_status === 'checked_in' ? "取消報到" : "報到"}
+        </Button>
       </TableCell>
     </TableRow>
   );
@@ -232,12 +276,13 @@ function CheckInManagement({ tournament }) {
                 <TableHead>
                   <TableRow>
                     <TableCell>報名序號</TableCell>
-                    <TableCell>姓名</TableCell>
                     <TableCell>會員編號</TableCell>
+                    <TableCell>姓名</TableCell>
                     <TableCell>差點</TableCell>
+                    <TableCell>分組</TableCell>
+                    <TableCell>備註</TableCell>
                     <TableCell>報到狀態</TableCell>
-                    <TableCell>報到時間</TableCell>
-                    <TableCell align="right">操作</TableCell>
+                    <TableCell>操作</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>

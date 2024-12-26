@@ -138,14 +138,6 @@ def init_db():
         db.drop_all()
         # 創建所有表格
         db.create_all()
-        
-        # 創建預設賽事
-        default_tournament = Tournament(
-            name='202501 日月潭高爾夫球場',
-            date='2025-01-04'
-        )
-        db.session.add(default_tournament)
-        db.session.commit()
 
 @app.route('/api/v1/tournaments/<int:tournament_id>/participants', methods=['GET'])
 def get_tournament_participants(tournament_id):
@@ -155,14 +147,19 @@ def get_tournament_participants(tournament_id):
         return jsonify([{
             'id': p.id,
             'registration_number': p.registration_number,
+            'member_number': p.member_number,
             'name': p.name,
             'handicap': p.handicap,
-            'member_number': p.member_number,
+            'pre_group_code': p.pre_group_code,
+            'notes': p.notes,
+            'check_in_status': p.check_in_status,
+            'check_in_time': p.check_in_time.isoformat() if p.check_in_time else None,
             'group_code': p.group_code,
-            'pre_group_code': p.pre_group_code
+            'group_number': p.group_number,
+            'group_order': p.group_order
         } for p in participants])
     except Exception as e:
-        app.logger.error(f"Error in get_tournament_participants: {str(e)}")
+        app.logger.error(f"Error getting participants: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/v1/tournaments/<int:tournament_id>/participants', methods=['POST'])
@@ -231,11 +228,14 @@ def get_tournament_groups(tournament_id):
         return jsonify([{
             'id': p.id,
             'registration_number': p.registration_number,
-            'name': p.name,
             'member_number': p.member_number,
+            'name': p.name,
             'handicap': p.handicap,
+            'pre_group_code': p.pre_group_code,
+            'notes': p.notes,
             'group_code': p.group_code,
-            'pre_group_code': p.pre_group_code
+            'group_number': p.group_number,
+            'group_order': p.group_order
         } for p in participants])
     except Exception as e:
         app.logger.error(f"Error getting groups: {str(e)}")
@@ -249,10 +249,15 @@ def update_tournament_groups(tournament_id):
         
         # 更新每個參賽者的分組
         for group_code, participants in groups.items():
-            for participant_data in participants:
+            # 按差點排序參賽者（由小到大）
+            sorted_participants = sorted(participants, key=lambda x: float(x.get('handicap', 0) or 0))
+            
+            # 更新每個參賽者的分組和順序
+            for index, participant_data in enumerate(sorted_participants):
                 participant = Participant.query.get(participant_data['id'])
                 if participant:
                     participant.group_code = group_code
+                    participant.group_order = index  # 保存排序順序
                     
         db.session.commit()
         return jsonify({'message': '分組更新成功'})
@@ -455,20 +460,19 @@ def get_next_registration_number(tournament_id):
 def get_tournament_check_ins(tournament_id):
     """獲取賽事的報到狀態"""
     try:
-        # 先獲取所有參賽者
         participants = Participant.query.filter_by(tournament_id=tournament_id).all()
-        
-        # 返回包含分組信息的參賽者資料
         return jsonify([{
             'id': p.id,
             'registration_number': p.registration_number,
-            'name': p.name,
             'member_number': p.member_number,
+            'name': p.name,
             'handicap': p.handicap,
-            'group_code': p.group_code or 'None',  # 使用已保存的分組代碼
+            'pre_group_code': p.pre_group_code,
+            'notes': p.notes,
             'check_in_status': p.check_in_status,
-            'check_in_time': p.check_in_time.isoformat() if p.check_in_time else None
-        } for p in sorted(participants, key=lambda x: (x.group_code or 'None', -float(x.handicap or 0)))])  # 按分組代碼和差點排序
+            'check_in_time': p.check_in_time.isoformat() if p.check_in_time else None,
+            'group_code': p.group_code
+        } for p in participants])
     except Exception as e:
         app.logger.error(f"Error getting check-ins: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -489,8 +493,8 @@ def check_in_participant(participant_id):
         return jsonify({
             'id': participant.id,
             'registration_number': participant.registration_number,
-            'name': participant.name,
             'member_number': participant.member_number,
+            'name': participant.name,
             'handicap': participant.handicap,
             'group_code': participant.group_code,
             'check_in_status': participant.check_in_status,
@@ -518,8 +522,8 @@ def cancel_check_in(participant_id):
         return jsonify({
             'id': participant.id,
             'registration_number': participant.registration_number,
-            'name': participant.name,
             'member_number': participant.member_number,
+            'name': participant.name,
             'handicap': participant.handicap,
             'group_code': participant.group_code,
             'check_in_status': participant.check_in_status,
@@ -529,6 +533,24 @@ def cancel_check_in(participant_id):
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"Error in cancel_check_in: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/v1/participants/<int:participant_id>/notes', methods=['PUT'])
+def update_participant_notes(participant_id):
+    """更新參賽者備註"""
+    try:
+        data = request.json
+        participant = Participant.query.get(participant_id)
+        
+        if not participant:
+            return jsonify({'error': '找不到參賽者'}), 404
+            
+        participant.notes = data.get('notes', '')
+        db.session.commit()
+        
+        return jsonify({'message': '備註更新成功'})
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 # 靜態文件路由必須放在最後

@@ -67,6 +67,7 @@ function ParticipantManagement({ tournament }) {
   const [snackbarSeverity, setSnackbarSeverity] = useState('');
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const loadParticipants = async () => {
     try {
@@ -357,35 +358,32 @@ function ParticipantManagement({ tournament }) {
 
   const handleNotesChange = async (participantId, notes) => {
     try {
-      // 立即更新本地狀態
-      setParticipants(prevParticipants => 
+      setLoading(true);
+      const response = await fetch(`${config.API_BASE_URL}/api/v1/participants/${participantId}/notes`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ notes }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update notes');
+      }
+
+      // 更新本地狀態
+      setParticipants(prevParticipants =>
         prevParticipants.map(p =>
           p.id === participantId ? { ...p, notes } : p
         )
       );
 
-      const response = await fetch(
-        `${config.API_BASE_URL}/api/participants/${participantId}/notes`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ notes }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        setError(errorData.error || '更新備註失敗');
-        // 如果更新失敗，恢復原始狀態
-        loadParticipants();
-      }
+      setSuccess('備註更新成功');
     } catch (error) {
       console.error('Error updating notes:', error);
-      setError('更新備註失敗');
-      // 如果發生錯誤，恢復原始狀態
-      loadParticipants();
+      setError('備註更新失敗');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -507,9 +505,10 @@ function ParticipantManagement({ tournament }) {
                 <TableCell>
                   <TextField
                     value={participant.notes || ''}
-                    onChange={(e) => handleParticipantChange(index, 'notes', e.target.value)}
-                    size="small"
-                    sx={{ width: '120px' }}
+                    onChange={(e) => handleNotesChange(participant.id, e.target.value)}
+                    placeholder="備註"
+                    variant="standard"
+                    fullWidth
                   />
                 </TableCell>
                 <TableCell>
