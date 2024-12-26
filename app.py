@@ -807,8 +807,10 @@ def import_participants():
             print(f"處理參賽者：{name}, 會員編號：{member_number}")
             
             # 根據會員編號判斷性別
-            gender = 'F' if member_number.startswith('F') else 'M'
-            print(f"判斷性別：{gender} (根據會員編號：{member_number})")
+            member_parts = member_number.split('/')
+            member_id = member_parts[-1] if len(member_parts) > 1 else member_number
+            gender = 'F' if member_id.startswith('F') else 'M'
+            print(f"判斷性別：{gender} (根據會員編號：{member_id})")
             
             # 檢查是否已存在
             existing = next((p for p in existing_participants if p.name == name), None)
@@ -870,7 +872,9 @@ def update_all_genders():
         for participant in participants:
             member_number = participant.member_number
             # 根據會員編號判斷性別
-            new_gender = 'F' if member_number.startswith('F') else 'M'
+            member_parts = member_number.split('/')
+            member_id = member_parts[-1] if len(member_parts) > 1 else member_number
+            new_gender = 'F' if member_id.startswith('F') else 'M'
             
             if participant.gender != new_gender:
                 participant.gender = new_gender
