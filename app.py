@@ -781,6 +781,9 @@ def import_participants():
             return jsonify({'error': 'Missing required data'}), 400
             
         df = pd.read_excel(file)
+        print("Excel 內容：")
+        print(df[['姓名', '會員編號', '報名序號']])
+        
         existing_participants = Participant.query.filter_by(tournament_id=tournament_id).all()
         max_number = 0
         
@@ -797,19 +800,24 @@ def import_participants():
         updated_count = 0
         
         for _, row in df.iterrows():
-            member_number = str(row.get('會員編號', ''))
-            original_reg_number = str(row.get('報名序號', ''))
+            member_number = str(row.get('會員編號', '')).strip()  # 移除空白
+            original_reg_number = str(row.get('報名序號', '')).strip()  # 移除空白
+            name = str(row.get('姓名', '')).strip()  # 移除空白
+            
+            print(f"處理參賽者：{name}, 會員編號：{member_number}")
             
             # 根據會員編號判斷性別
             gender = 'F' if member_number.startswith('F') else 'M'
+            print(f"判斷性別：{gender} (根據會員編號：{member_number})")
             
             # 檢查是否已存在
-            existing = next((p for p in existing_participants if p.name == str(row.get('姓名', ''))), None)
+            existing = next((p for p in existing_participants if p.name == name), None)
             
             if existing:
                 # 更新現有參賽者
+                print(f"更新現有參賽者：{name}")
                 existing.member_number = member_number
-                existing.name = str(row.get('姓名', ''))
+                existing.name = name
                 existing.handicap = str(row.get('差點', ''))
                 existing.pre_group_code = str(row.get('預分組', ''))
                 existing.gender = gender
@@ -820,12 +828,13 @@ def import_participants():
                 max_number += 1
                 new_reg_number = f"A{max_number:02d}/{original_reg_number.split('/')[1]}" if '/' in original_reg_number else f"A{max_number:02d}"
                 
+                print(f"新增參賽者：{name}, 新序號：{new_reg_number}, 性別：{gender}")
                 participant = Participant(
                     tournament_id=tournament_id,
                     registration_number=new_reg_number,
                     original_number=original_reg_number,
                     member_number=member_number,
-                    name=str(row.get('姓名', '')),
+                    name=name,
                     handicap=str(row.get('差點', '')),
                     pre_group_code=str(row.get('預分組', '')),
                     gender=gender
@@ -834,6 +843,13 @@ def import_participants():
                 imported_count += 1
             
         db.session.commit()
+        
+        # 列出所有參賽者資料
+        print("\n更新後的參賽者資料：")
+        all_participants = Participant.query.filter_by(tournament_id=tournament_id).all()
+        for p in all_participants:
+            print(f"姓名：{p.name}, 會員編號：{p.member_number}, 性別：{p.gender}")
+        
         return jsonify({
             'message': f'Successfully imported {imported_count} and updated {updated_count} participants',
             'imported_count': imported_count,
@@ -841,6 +857,7 @@ def import_participants():
         })
     except Exception as e:
         db.session.rollback()
+        print(f"錯誤：{str(e)}")
         return jsonify({'error': str(e)}), 400
 
 @app.route('/api/v1/participants/update-gender', methods=['GET', 'POST'])
