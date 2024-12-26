@@ -351,14 +351,19 @@ function GroupManagement({ tournament }) {
                 <Typography>
                   {participant.name} ({participant.handicap})
                   <Button 
-                    variant="link" 
+                    variant="text"
                     onClick={() => toggleGender(participant)}
-                    style={{ padding: '0 5px' }}
+                    style={{ 
+                      padding: '0 5px',
+                      minWidth: '30px',
+                      marginLeft: '5px',
+                      backgroundColor: participant.gender === 'F' ? '#FFB6C1' : '#ADD8E6',
+                      color: '#000',
+                      fontWeight: 'bold',
+                      fontSize: '0.8rem'
+                    }}
                   >
-                    {participant.gender === 'F' ? 
-                        <FaFemale style={{ color: 'pink' }} /> : 
-                        <FaMale style={{ color: 'blue' }} />
-                    }
+                    {participant.gender === 'F' ? '女' : '男'}
                   </Button>
                 </Typography>
               </Box>
