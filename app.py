@@ -21,6 +21,13 @@ app.config['SQLALCHEMY_ECHO'] = True
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
+# 確保資料庫目錄存在
+os.makedirs(os.path.join(basedir, 'instance'), exist_ok=True)
+
+# 初始化資料庫
+with app.app_context():
+    db.create_all()
+
 class Tournament(db.Model):
     """賽事模型"""
     id = db.Column(db.Integer, primary_key=True)
@@ -204,6 +211,4 @@ def serve(path):
     return send_from_directory('frontend/build', 'index.html')
 
 if __name__ == '__main__':
-    # 確保 instance 目錄存在
-    os.makedirs(os.path.join(basedir, 'instance'), exist_ok=True)
     app.run(debug=True)
