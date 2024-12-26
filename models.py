@@ -18,6 +18,7 @@ class Participant(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     tournament_id = db.Column(db.Integer, db.ForeignKey('tournaments.id'), nullable=False)
     registration_number = db.Column(db.String(50), nullable=False)
+    original_number = db.Column(db.String(20))  # 原始報名序號
     member_number = db.Column(db.String(50))
     name = db.Column(db.String(100), nullable=False)
     handicap = db.Column(db.String(50))

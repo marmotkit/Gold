@@ -37,6 +37,7 @@ class Participant(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     tournament_id = db.Column(db.Integer, db.ForeignKey('tournament.id'), nullable=False)
     registration_number = db.Column(db.String(50), nullable=False)
+    original_number = db.Column(db.String(50))
     member_number = db.Column(db.String(50))
     name = db.Column(db.String(100), nullable=False)
     handicap = db.Column(db.String(50))
@@ -435,6 +436,7 @@ def import_participants(tournament_id):
                 new_participant = Participant(
                     tournament_id=tournament_id,
                     registration_number=registration_number,
+                    original_number=str(row['報名序號']),
                     member_number=str(row['會員編號']),
                     name=str(row['姓名']),
                     handicap=float(row['差點']) if pd.notna(row['差點']) else 0,
@@ -798,22 +800,20 @@ def import_participants():
             member_number = str(row.get('會員編號', ''))
             original_reg_number = str(row.get('報名序號', ''))
             
-            # 根據會員編號的第二部分判斷性別
-            member_parts = member_number.split('/')
-            if len(member_parts) > 1:
-                gender = 'F' if member_parts[1].startswith('F') else 'M'
-            else:
-                gender = 'M'
+            # 根據會員編號判斷性別
+            gender = 'F' if member_number.startswith('F') else 'M'
             
             # 檢查是否已存在
-            existing = next((p for p in existing_participants if p.member_number == member_number), None)
+            existing = next((p for p in existing_participants if p.name == str(row.get('姓名', ''))), None)
             
             if existing:
                 # 更新現有參賽者
+                existing.member_number = member_number
                 existing.name = str(row.get('姓名', ''))
                 existing.handicap = str(row.get('差點', ''))
                 existing.pre_group_code = str(row.get('預分組', ''))
                 existing.gender = gender
+                existing.original_number = original_reg_number
                 updated_count += 1
             else:
                 # 為新參賽者生成報名序號
@@ -823,6 +823,7 @@ def import_participants():
                 participant = Participant(
                     tournament_id=tournament_id,
                     registration_number=new_reg_number,
+                    original_number=original_reg_number,
                     member_number=member_number,
                     name=str(row.get('姓名', '')),
                     handicap=str(row.get('差點', '')),
@@ -851,12 +852,8 @@ def update_all_genders():
         
         for participant in participants:
             member_number = participant.member_number
-            # 根據會員編號的第二部分判斷性別
-            member_parts = member_number.split('/')
-            if len(member_parts) > 1:
-                new_gender = 'F' if member_parts[1].startswith('F') else 'M'
-            else:
-                new_gender = 'M'
+            # 根據會員編號判斷性別
+            new_gender = 'F' if member_number.startswith('F') else 'M'
             
             if participant.gender != new_gender:
                 participant.gender = new_gender
