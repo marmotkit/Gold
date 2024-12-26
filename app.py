@@ -768,7 +768,7 @@ def update_participant_handicap(participant_id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/v1/participants/import', methods=['POST'])
-def import_participants():
+def import_participants_from_excel():
     """從 Excel 檔案匯入參賽者"""
     try:
         if 'file' not in request.files:
@@ -804,13 +804,11 @@ def import_participants():
             original_reg_number = str(row.get('報名序號', '')).strip()  # 移除空白
             name = str(row.get('姓名', '')).strip()  # 移除空白
             
-            print(f"處理參賽者：{name}, 報名序號：{original_reg_number}")
+            print(f"處理參賽者：{name}, 會員編號：{member_number}, 報名序號：{original_reg_number}")
             
-            # 從報名序號判斷性別
-            reg_parts = original_reg_number.split('/')
-            reg_id = reg_parts[1] if len(reg_parts) > 1 else original_reg_number
-            gender = 'F' if reg_id.startswith('F') else 'M'
-            print(f"判斷性別：{gender} (根據報名序號：{reg_id})")
+            # 從會員編號判斷性別
+            gender = 'F' if member_number.startswith('F') else 'M'
+            print(f"判斷性別：{gender} (根據會員編號：{member_number})")
             
             # 檢查是否已存在
             existing = next((p for p in existing_participants if p.name == name), None)
@@ -828,7 +826,7 @@ def import_participants():
             else:
                 # 為新參賽者生成報名序號
                 max_number += 1
-                new_reg_number = f"A{max_number:02d}/{reg_id}" if reg_id else f"A{max_number:02d}"
+                new_reg_number = f"A{max_number:02d}/{original_reg_number}" if original_reg_number else f"A{max_number:02d}"
                 
                 print(f"新增參賽者：{name}, 新序號：{new_reg_number}, 性別：{gender}")
                 participant = Participant(
@@ -850,7 +848,7 @@ def import_participants():
         print("\n更新後的參賽者資料：")
         all_participants = Participant.query.filter_by(tournament_id=tournament_id).all()
         for p in all_participants:
-            print(f"姓名：{p.name}, 報名序號：{p.registration_number}, 性別：{p.gender}")
+            print(f"姓名：{p.name}, 會員編號：{p.member_number}, 報名序號：{p.registration_number}, 性別：{p.gender}")
         
         return jsonify({
             'message': f'Successfully imported {imported_count} and updated {updated_count} participants',
@@ -870,16 +868,14 @@ def update_all_genders():
         updated_count = 0
         
         for participant in participants:
-            # 從報名序號判斷性別
-            original_number = participant.original_number or participant.registration_number
-            reg_parts = original_number.split('/')
-            reg_id = reg_parts[1] if len(reg_parts) > 1 else original_number
-            new_gender = 'F' if reg_id.startswith('F') else 'M'
+            # 從會員編號判斷性別
+            member_number = participant.member_number
+            new_gender = 'F' if member_number.startswith('F') else 'M'
             
             if participant.gender != new_gender:
                 participant.gender = new_gender
                 updated_count += 1
-                print(f"更新參賽者性別：{participant.name}, 報名序號：{original_number}, 新性別：{new_gender}")
+                print(f"更新參賽者性別：{participant.name}, 會員編號：{member_number}, 新性別：{new_gender}")
         
         db.session.commit()
         return jsonify({
