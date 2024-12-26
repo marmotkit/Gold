@@ -12,6 +12,7 @@ import {
   Typography,
 } from '@mui/material';
 import axios from 'axios';
+import config from '../config'; // assume config is in a separate file
 import './TournamentList.css';
 
 interface Tournament {
@@ -31,7 +32,7 @@ export default function TournamentList() {
 
   const fetchTournaments = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/v1/tournaments');
+      const response = await axios.get(`${config.API_BASE_URL}/api/v1/tournaments`);
       setTournaments(response.data);
     } catch (error) {
       console.error('Error fetching tournaments:', error);
@@ -40,7 +41,7 @@ export default function TournamentList() {
 
   const handleAddTournament = async () => {
     try {
-      await axios.post('http://localhost:5000/api/v1/tournaments', {
+      await axios.post(`${config.API_BASE_URL}/api/v1/tournaments`, {
         name: '新賽事',
         date: '2024-03-16'
       });

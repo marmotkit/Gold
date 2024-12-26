@@ -26,6 +26,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import SaveIcon from '@mui/icons-material/Save';
 import DownloadIcon from '@mui/icons-material/Download';
 import config from '../config';
+import { FaMale, FaFemale } from 'react-icons/fa';
 
 function GroupManagement({ tournament }) {
   const [participants, setParticipants] = useState([]);
@@ -270,6 +271,28 @@ function GroupManagement({ tournament }) {
     }
   };
 
+  // 切換性別
+  const toggleGender = async (participant) => {
+    try {
+      const newGender = participant.gender === 'M' ? 'F' : 'M';
+      const response = await fetch(`${config.API_BASE_URL}/api/v1/participants/${participant.id}/gender`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ gender: newGender }),
+      });
+      if (response.ok) {
+        // 重新載入資料
+        fetchParticipants();
+      } else {
+        console.error('Failed to update gender');
+      }
+    } catch (error) {
+      console.error('Error updating gender:', error);
+    }
+  };
+
   // 渲染分組
   const renderGroup = (groupCode, participants, provided) => (
     <Paper 
@@ -327,6 +350,16 @@ function GroupManagement({ tournament }) {
                 </Typography>
                 <Typography>
                   {participant.name} ({participant.handicap})
+                  <Button 
+                    variant="link" 
+                    onClick={() => toggleGender(participant)}
+                    style={{ padding: '0 5px' }}
+                  >
+                    {participant.gender === 'F' ? 
+                        <FaFemale style={{ color: 'pink' }} /> : 
+                        <FaMale style={{ color: 'blue' }} />
+                    }
+                  </Button>
                 </Typography>
               </Box>
               {participant.pre_group_code && (

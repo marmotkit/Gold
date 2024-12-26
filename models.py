@@ -13,20 +13,22 @@ class Tournament(db.Model):
     groups = db.relationship('Group', backref='tournament', lazy=True, cascade="all, delete-orphan")
 
 class Participant(db.Model):
+    """參賽者模型"""
     __tablename__ = 'participants'
     id = db.Column(db.Integer, primary_key=True)
     tournament_id = db.Column(db.Integer, db.ForeignKey('tournaments.id'), nullable=False)
-    registration_number = db.Column(db.String(50))
+    registration_number = db.Column(db.String(50), nullable=False)
     member_number = db.Column(db.String(50))
     name = db.Column(db.String(100), nullable=False)
-    handicap = db.Column(db.Float)
+    handicap = db.Column(db.String(50))
     pre_group_code = db.Column(db.String(50))
-    group_id = db.Column(db.Integer, db.ForeignKey('groups.id'))
-    group_code = db.Column(db.String(50))  # 分組代碼
-    group_order = db.Column(db.Integer)  # 在分組中的順序
     notes = db.Column(db.Text)
-    check_in_status = db.Column(db.String(20), default='not_checked_in')  # 'checked_in', 'cancelled', 'not_checked_in'
+    check_in_status = db.Column(db.String(20), default='not_checked_in')
     check_in_time = db.Column(db.DateTime)
+    group_code = db.Column(db.String(50))
+    group_number = db.Column(db.Integer)
+    group_order = db.Column(db.Integer)
+    gender = db.Column(db.String(1), default='M')  # 'M' for male, 'F' for female
     checkin = db.relationship('CheckIn', backref='participant', lazy=True, uselist=False, cascade="all, delete-orphan")
 
 class Group(db.Model):

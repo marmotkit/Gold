@@ -20,6 +20,7 @@ if database_url and database_url.startswith('postgres://'):
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url or f'sqlite:///{os.path.join(basedir, "instance", "tournament.db")}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ECHO'] = True
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
@@ -46,6 +47,7 @@ class Participant(db.Model):
     group_code = db.Column(db.String(50))
     group_number = db.Column(db.Integer)
     group_order = db.Column(db.Integer)
+    gender = db.Column(db.String(10))
 
 # API 路由
 @app.route('/api/v1/tournaments', methods=['GET'])
@@ -162,7 +164,8 @@ def get_tournament_participants(tournament_id):
             'check_in_time': p.check_in_time.isoformat() if p.check_in_time else None,
             'group_code': p.group_code,
             'group_number': p.group_number,
-            'group_order': p.group_order
+            'group_order': p.group_order,
+            'gender': p.gender
         } for p in participants])
     except Exception as e:
         app.logger.error(f"Error getting participants: {str(e)}")
@@ -208,6 +211,19 @@ def add_tournament_participant(tournament_id):
         app.logger.error(f"Error in add_tournament_participant: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/v1/participants/<int:participant_id>/gender', methods=['PUT'])
+def update_participant_gender(participant_id):
+    """更新參賽者性別"""
+    try:
+        participant = Participant.query.get_or_404(participant_id)
+        data = request.get_json()
+        participant.gender = data.get('gender', 'M')
+        db.session.commit()
+        return jsonify({'message': 'Gender updated successfully', 'gender': participant.gender})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
+
 @app.route('/api/v1/participants/<int:participant_id>', methods=['DELETE'])
 def delete_participant(participant_id):
     """刪除參賽者"""
@@ -241,7 +257,8 @@ def get_tournament_groups(tournament_id):
             'notes': p.notes,
             'group_code': p.group_code,
             'group_number': p.group_number,
-            'group_order': p.group_order
+            'group_order': p.group_order,
+            'gender': p.gender
         } for p in participants])
     except Exception as e:
         app.logger.error(f"Error getting groups: {str(e)}")
@@ -407,6 +424,7 @@ def import_participants(tournament_id):
                 participant.handicap = float(row['差點']) if pd.notna(row['差點']) else 0
                 participant.pre_group_code = str(pre_group_code) if pre_group_code is not None else ''
                 participant.notes = str(row['備註']) if pd.notna(row.get('備註')) else ''
+                participant.gender = 'F' if str(row['會員編號']).startswith('F') else 'M'
                 updated_count += 1
             else:
                 # 為新參賽者生成報名序號 (A01, A02, ...)
@@ -421,7 +439,8 @@ def import_participants(tournament_id):
                     name=str(row['姓名']),
                     handicap=float(row['差點']) if pd.notna(row['差點']) else 0,
                     pre_group_code=str(pre_group_code) if pre_group_code is not None else '',
-                    notes=str(row['備註']) if pd.notna(row.get('備註')) else ''
+                    notes=str(row['備註']) if pd.notna(row.get('備註')) else '',
+                    gender='F' if str(row['會員編號']).startswith('F') else 'M'
                 )
                 db.session.add(new_participant)
                 imported_count += 1
@@ -479,7 +498,8 @@ def get_tournament_check_ins(tournament_id):
             'notes': p.notes,
             'check_in_status': p.check_in_status,
             'check_in_time': p.check_in_time.isoformat() if p.check_in_time else None,
-            'group_code': p.group_code
+            'group_code': p.group_code,
+            'gender': p.gender
         } for p in participants])
     except Exception as e:
         app.logger.error(f"Error getting check-ins: {str(e)}")
@@ -506,7 +526,8 @@ def check_in_participant(participant_id):
             'handicap': participant.handicap,
             'group_code': participant.group_code,
             'check_in_status': participant.check_in_status,
-            'check_in_time': participant.check_in_time.isoformat()
+            'check_in_time': participant.check_in_time.isoformat(),
+            'gender': participant.gender
         })
         
     except Exception as e:
@@ -535,7 +556,8 @@ def cancel_check_in(participant_id):
             'handicap': participant.handicap,
             'group_code': participant.group_code,
             'check_in_status': participant.check_in_status,
-            'check_in_time': None
+            'check_in_time': None,
+            'gender': participant.gender
         })
         
     except Exception as e:
@@ -597,7 +619,8 @@ def export_groups(tournament_id):
                 '會員編號': '',
                 '姓名': '',
                 '差點': '',
-                '預分組編號': ''
+                '預分組編號': '',
+                '性別': ''
             })
             
             # 添加該組的參賽者
@@ -609,7 +632,8 @@ def export_groups(tournament_id):
                     '會員編號': p.member_number,
                     '姓名': p.name,
                     '差點': f'({float(p.handicap)})' if p.handicap else '(0.0)',
-                    '預分組編號': p.pre_group_code or ''
+                    '預分組編號': p.pre_group_code or '',
+                    '性別': p.gender
                 })
         
         # 添加未分組的參賽者
@@ -622,7 +646,8 @@ def export_groups(tournament_id):
                 '會員編號': '',
                 '姓名': '',
                 '差點': '',
-                '預分組編號': ''
+                '預分組編號': '',
+                '性別': ''
             })
             for p in ungrouped:
                 data.append({
@@ -632,7 +657,8 @@ def export_groups(tournament_id):
                     '會員編號': p.member_number,
                     '姓名': p.name,
                     '差點': f'({float(p.handicap)})' if p.handicap else '(0.0)',
-                    '預分組編號': p.pre_group_code or ''
+                    '預分組編號': p.pre_group_code or '',
+                    '性別': p.gender
                 })
         
         app.logger.info("Created DataFrame")
@@ -657,6 +683,7 @@ def export_groups(tournament_id):
             worksheet.set_column('E:E', 15)  # 姓名
             worksheet.set_column('F:F', 10)  # 差點
             worksheet.set_column('G:G', 12)  # 預分組編號
+            worksheet.set_column('H:H', 6)   # 性別
             
             # 添加標題格式
             header_format = workbook.add_format({
