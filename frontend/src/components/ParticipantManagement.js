@@ -68,6 +68,12 @@ function ParticipantManagement({ tournament }) {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [editingHandicaps, setEditingHandicaps] = useState({});
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
 
   const loadParticipants = async () => {
     try {
@@ -394,18 +400,60 @@ function ParticipantManagement({ tournament }) {
     []
   );
 
-  const ImportProgress = () => (
-    <Box sx={{ width: '100%', mb: 2 }}>
-      {isImporting && (
-        <>
-          <LinearProgress variant="determinate" value={importProgress} />
-          <Typography variant="body2" color="text.secondary" align="center">
-            {`匯入進度：${Math.round(importProgress)}%`}
-          </Typography>
-        </>
-      )}
-    </Box>
-  );
+  const handleHandicapChange = (participantId, value) => {
+    setEditingHandicaps(prev => ({
+      ...prev,
+      [participantId]: value
+    }));
+  };
+
+  const handleSaveHandicap = async (participant) => {
+    try {
+      const newHandicap = editingHandicaps[participant.id];
+      if (newHandicap === undefined || newHandicap === participant.handicap) {
+        return;
+      }
+
+      const response = await fetch(`${config.API_BASE_URL}/api/v1/participants/${participant.id}/handicap`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ handicap: newHandicap }),
+      });
+
+      if (!response.ok) {
+        throw new Error('更新差點失敗');
+      }
+
+      // 更新本地狀態
+      setParticipants(prevParticipants =>
+        prevParticipants.map(p =>
+          p.id === participant.id ? { ...p, handicap: newHandicap } : p
+        )
+      );
+
+      // 清除編輯狀態
+      setEditingHandicaps(prev => {
+        const newState = { ...prev };
+        delete newState[participant.id];
+        return newState;
+      });
+
+      setSnackbar({
+        open: true,
+        message: '差點更新成功',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error updating handicap:', error);
+      setSnackbar({
+        open: true,
+        message: error.message || '更新失敗',
+        severity: 'error'
+      });
+    }
+  };
 
   const handleParticipantChange = (index, field, value) => {
     setParticipants(prevParticipants => 
@@ -486,24 +534,31 @@ function ParticipantManagement({ tournament }) {
                 <TableCell>{participant.member_number}</TableCell>
                 <TableCell>{participant.name}</TableCell>
                 <TableCell>
-                  <TextField
-                    value={participant.handicap || ''}
-                    onChange={(e) => handleParticipantChange(index, 'handicap', e.target.value)}
-                    size="small"
-                    sx={{ width: '80px' }}
-                  />
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <TextField
+                      size="small"
+                      value={editingHandicaps[participant.id] ?? participant.handicap}
+                      onChange={(e) => handleHandicapChange(participant.id, e.target.value)}
+                      sx={{ width: '80px' }}
+                    />
+                    {editingHandicaps[participant.id] !== undefined && 
+                      editingHandicaps[participant.id] !== participant.handicap && (
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={() => handleSaveHandicap(participant)}
+                        sx={{ minWidth: 'unset', px: 1 }}
+                      >
+                        儲存
+                      </Button>
+                    )}
+                  </Box>
                 </TableCell>
-                <TableCell>
-                  <TextField
-                    value={participant.pre_group_code || ''}
-                    onChange={(e) => handleParticipantChange(index, 'pre_group_code', e.target.value)}
-                    size="small"
-                    sx={{ width: '80px' }}
-                  />
-                </TableCell>
+                <TableCell>{participant.pre_group_code || ''}</TableCell>
                 <TableCell>{participant.group_code || ''}</TableCell>
                 <TableCell>
                   <TextField
+                    size="small"
                     value={participant.notes || ''}
                     onChange={(e) => handleNotesChange(participant.id, e.target.value)}
                     placeholder="備註"
@@ -602,6 +657,19 @@ function ParticipantManagement({ tournament }) {
           sx={{ width: '100%' }}
         >
           {snackbarMessage}
+        </Alert>
+      </Snackbar>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+      >
+        <Alert
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+          severity={snackbar.severity}
+        >
+          {snackbar.message}
         </Alert>
       </Snackbar>
     </div>

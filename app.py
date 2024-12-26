@@ -713,6 +713,27 @@ def export_groups(tournament_id):
         app.logger.error(f"Error exporting groups: {str(e)}")
         return jsonify({'error': f"導出失敗: {str(e)}"}), 500
 
+@app.route('/api/v1/participants/<int:participant_id>/handicap', methods=['PUT'])
+def update_participant_handicap(participant_id):
+    """更新參賽者差點"""
+    try:
+        data = request.get_json()
+        if not data or 'handicap' not in data:
+            return jsonify({'error': '缺少差點數據'}), 400
+
+        participant = Participant.query.get_or_404(participant_id)
+        participant.handicap = data['handicap']
+        db.session.commit()
+
+        return jsonify({
+            'id': participant.id,
+            'handicap': participant.handicap
+        })
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error updating participant handicap: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 # 靜態文件路由必須放在最後
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
