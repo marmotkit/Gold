@@ -67,7 +67,7 @@ def create_tournament():
     try:
         data = request.get_json()
         if not data:
-            return jsonify({'error': '無效的請求數據'}), 400
+            return jsonify({'error': '無效的��求數據'}), 400
             
         name = data.get('name')
         date = data.get('date')
@@ -319,7 +319,7 @@ def auto_group(tournament_id):
         zero_handicap = [p for p in ungrouped if p.handicap == '0' or p.handicap == 0]
         other_handicap = [p for p in ungrouped if p not in zero_handicap]
         
-        # 按差點排序其他參賽者（從小到大）
+        # 按差���排序其他參賽者（從小到大）
         sorted_participants = sorted(other_handicap, 
                                   key=lambda p: float(p.handicap if p.handicap else float('inf')))
         
@@ -377,85 +377,96 @@ def import_participants_from_excel():
         file = request.files['file']
         tournament_id = request.form.get('tournament_id')
         
+        print(f"收到檔案：{file.filename}")
+        print(f"Tournament ID：{tournament_id}")
+        
         if not file or not tournament_id:
             return jsonify({'error': 'Missing required data'}), 400
             
-        df = pd.read_excel(file)
-        print("Excel 內容：")
-        print(df[['姓名', '會員編號', '報名序號', '性別']])
+        # 確保 tournament_id 是整數
+        tournament_id = int(tournament_id)
         
-        existing_participants = Participant.query.filter_by(tournament_id=tournament_id).all()
-        max_number = 0
-        
-        # 找出目前最大的序號
-        for p in existing_participants:
-            if p.registration_number.startswith('A'):
-                try:
-                    number = int(p.registration_number.split('/')[0][1:])
-                    max_number = max(max_number, number)
-                except ValueError:
-                    pass
+        try:
+            # 使用 BytesIO 處理檔案
+            file_content = file.read()
+            df = pd.read_excel(io.BytesIO(file_content))
+            
+            print(f"Excel 欄位：{list(df.columns)}")
+            print(f"資料筆數：{len(df)}")
+            
+            # 檢查必要欄位
+            required_columns = ['報名序號', '會員編號', '姓名', '差點', '預分組編號', '性別']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                return jsonify({'error': f'Excel 缺少以下欄位：{", ".join(missing_columns)}'}), 400
+            
+            existing_participants = Participant.query.filter_by(tournament_id=tournament_id).all()
+            max_number = 0
+            
+            # 找出目前最大的序號
+            for p in existing_participants:
+                if p.registration_number and p.registration_number.startswith('A'):
+                    try:
+                        num = int(p.registration_number.split('/')[0][1:])
+                        max_number = max(max_number, num)
+                    except ValueError:
+                        pass
 
-        imported_count = 0
-        updated_count = 0
-        
-        for _, row in df.iterrows():
-            member_number = str(row.get('會員編號', '')).strip()  # 移除空白
-            original_reg_number = str(row.get('報名序號', '')).strip()  # 移除空白
-            name = str(row.get('姓名', '')).strip()  # 移除空白
-            gender = str(row.get('性別', '')).strip()  # 直接使用 Excel 的性別欄位
+            imported_count = 0
+            updated_count = 0
             
-            print(f"處理參賽者：{name}, 會員編號：{member_number}, 報名序號：{original_reg_number}, 性別：{gender}")
-            
-            # 檢查是否已存在
-            existing = next((p for p in existing_participants if p.name == name), None)
-            
-            if existing:
-                # 更新現有參賽者
-                print(f"更新現有參賽者：{name}")
-                existing.member_number = member_number
-                existing.name = name
-                existing.handicap = str(row.get('差點', ''))
-                existing.pre_group_code = str(row.get('預分組', ''))
-                existing.gender = gender
-                existing.original_number = original_reg_number
-                updated_count += 1
-            else:
-                # 為新參賽者生成報名序號
-                max_number += 1
-                new_reg_number = f"A{max_number:02d}/{original_reg_number}" if original_reg_number else f"A{max_number:02d}"
+            for _, row in df.iterrows():
+                member_number = str(row['會員編號']).strip()
+                original_reg_number = str(row['報名序號']).strip()
+                name = str(row['姓名']).strip()
+                gender = str(row['性別']).strip()
+                handicap = str(row['差點']).strip()
+                pre_group_code = str(row['預分組編號']).strip()
                 
-                print(f"新增參賽者：{name}, 新序號：{new_reg_number}, 性別：{gender}")
-                participant = Participant(
-                    tournament_id=tournament_id,
-                    registration_number=new_reg_number,
-                    original_number=original_reg_number,
-                    member_number=member_number,
-                    name=name,
-                    handicap=str(row.get('差點', '')),
-                    pre_group_code=str(row.get('預分組', '')),
-                    gender=gender
-                )
-                db.session.add(participant)
-                imported_count += 1
+                print(f"處理參賽者：{name}, 會員編號：{member_number}, 性別：{gender}")
+                
+                # 檢查是否已存在
+                existing = next((p for p in existing_participants if p.name == name), None)
+                
+                if existing:
+                    # 更新現有參賽者
+                    existing.member_number = member_number
+                    existing.name = name
+                    existing.handicap = handicap
+                    existing.pre_group_code = pre_group_code
+                    existing.gender = gender
+                    existing.original_number = original_reg_number
+                    updated_count += 1
+                else:
+                    # 新增參賽者
+                    max_number += 1
+                    new_reg_number = f"A{max_number:02d}/{original_reg_number}" if original_reg_number else f"A{max_number:02d}"
+                    
+                    participant = Participant(
+                        tournament_id=tournament_id,
+                        registration_number=new_reg_number,
+                        original_number=original_reg_number,
+                        member_number=member_number,
+                        name=name,
+                        handicap=handicap,
+                        pre_group_code=pre_group_code,
+                        gender=gender
+                    )
+                    db.session.add(participant)
+                    imported_count += 1
             
-        db.session.commit()
-        
-        # 列出所有參賽者資料
-        print("\n更新後的參賽者資料：")
-        all_participants = Participant.query.filter_by(tournament_id=tournament_id).all()
-        for p in all_participants:
-            print(f"姓名：{p.name}, 會員編號：{p.member_number}, 報名序號：{p.registration_number}, 性別：{p.gender}")
-        
-        return jsonify({
-            'message': f'Successfully imported {imported_count} and updated {updated_count} participants',
-            'imported_count': imported_count,
-            'updated_count': updated_count
-        })
+            db.session.commit()
+            
+            return jsonify({
+                'message': f'Successfully imported {imported_count} and updated {updated_count} participants',
+                'imported_count': imported_count,
+                'updated_count': updated_count
+            })
+            
     except Exception as e:
         db.session.rollback()
         print(f"錯誤：{str(e)}")
-        return jsonify({'error': str(e)}), 400
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/v1/tournaments/<int:tournament_id>/next-registration-number', methods=['GET'])
 def get_next_registration_number(tournament_id):
@@ -781,7 +792,7 @@ def import_participants_from_excel():
             
         df = pd.read_excel(file)
         print("Excel 內容：")
-        print(df[['姓名', '會員編號', '報名序號']])
+        print(df[['姓名', '會員編號', '報��序號', '性別']])
         
         existing_participants = Participant.query.filter_by(tournament_id=tournament_id).all()
         max_number = 0
@@ -802,12 +813,9 @@ def import_participants_from_excel():
             member_number = str(row.get('會員編號', '')).strip()  # 移除空白
             original_reg_number = str(row.get('報名序號', '')).strip()  # 移除空白
             name = str(row.get('姓名', '')).strip()  # 移除空白
+            gender = str(row.get('性別', '')).strip()  # 直接使用 Excel 的性別欄位
             
-            print(f"處理參賽者：{name}, 會員編號：{member_number}, 報名序號：{original_reg_number}")
-            
-            # 直接使用 Excel 的性別欄位
-            gender = str(row.get('性別', '')).strip()
-            print(f"判斷性別：{gender} (根據 Excel 的性別欄位)")
+            print(f"處理參賽者：{name}, 會員編號：{member_number}, 報名序號：{original_reg_number}, 性別：{gender}")
             
             # 檢查是否已存在
             existing = next((p for p in existing_participants if p.name == name), None)
