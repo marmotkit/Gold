@@ -1,0 +1,50 @@
+[33m9a0ce50[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m fix: 添加 numpy 依賴以解決 pandas 編譯問題
+[33mf44b027[m fix: 回滾到穩定版本並簡化依賴
+[33m28b5125[m revert: 回滾到之前穩定版本
+[33m4ee413d[m fix: 降級 pandas 和 numpy 版本以解決相容性問題
+[33m870eadb[m fix: 改進 Excel 檔案處理方式，使用 BytesIO
+[33mc1c1645[m fix: 改進 Excel 檔案處理方式
+[33m3a7aabb[m fix: 改進檔案上傳錯誤處理和日誌
+[33m5605a8a[m fix: 改進 Excel 匯入的錯誤處理
+[33md89ab64[m fix: 確保資料庫目錄存在
+[33m9c42561[m fix: 更新 numpy 和 pandas 版本以支持 Python 3.11
+[33m94810d7[m fix: 指定 numpy 版本以解決編譯問題
+[33mc3c66a1[m fix: 調整套件版本以解決相容性問題
+[33md426330[m fix: 簡化依賴項以解決部署問題
+[33m6fd0a17[m feat: 添加身份欄位的資料庫遷移
+[33m462db2a[m fix: 修正套件版本相容性問題
+[33mdc54b42[m fix: 修正套件版本相容性問題
+[33mb16924d[m feat: 添加身份欄位顯示功能
+[33m1d5aae7[m fix: 降級相依套件版本並更新前端組件
+[33m2c1697a[m fix: 修正性別判斷邏輯，根據會員編號 F 開頭判定為女性
+[33m6ae5bd3[m fix: 移除所有性別判斷邏輯，直接使用 Excel 的性別欄位值
+[33me7bdc15[m fix: 在前端添加 tournament_id 參數並修正成功訊息
+[33m2442e27[m fix: 直接從 Excel 讀取性別欄位，不再使用會員編號判斷性別
+[33m2d5c491[m fix: 更新 requirements.txt，移除不需要的套件並更新版本
+[33mf13bb2e[m fix: 修正性別判斷邏輯，使用會員編號判斷
+[33m331802c[m fix: 移除 PostgreSQL 相關的設定，改為直接使用 SQLite
+[33m52413df[m fix: 修正性別判斷和報名序號邏輯
+[33m67e60e5[m feat: 新增除錯用的路由，顯示所有參賽者的詳細資料
+[33mccb6b95[m fix: 修正性別判斷邏輯
+[33m39f8909[m fix: 修正性別判斷邏輯
+[33mb172f29[m fix: 修正 API 網址和性別判斷邏輯
+[33m23092e4[m fix: 修正性別判斷邏輯
+[33meb3a745[m fix: 修正性別判斷邏輯
+[33md60eace[m fix: 修正性別判斷邏輯
+[33m6d226ba[m fix: 修正性別判斷邏輯
+[33m7685ed4[m feat: 新增匯入日誌輸出
+[33m08f0381[m fix: 修正參賽者資料結構
+[33m0326771[m fix: 修正性別判斷邏輯
+[33m430333e[m fix: 修正性別判斷邏輯
+[33m6982013[m fix: 修正匯入時的性別判斷
+[33mfebfcd0[m fix: 允許 GET 方法訪問性別更新 API
+[33md82d894[m fix: 修正性別判斷邏輯
+[33m54120c6[m style: 改進性別顯示方式
+[33md0b967b[m feat: 新增性別顯示和編輯功能
+[33mf5bebbb[m 準備雲端部署配置： 1. 新增 Render.com 部署配置 2. 更新資料庫和 API 配置 3. 新增前端部署配置
+[33mdf99a79[m 改進參賽者管理頁面： 1. 將預分組編號改為純顯示 2. 新增差點編輯功能，需要點擊儲存按鈕才會更新 3. 新增差點更新 API 端點
+[33md1e18a5[m 改進功能： 1. 修改報到管理頁面的分組排序 2. 優化 Excel 導出格式，使其與網頁顯示一致 3. 新增組別和人數欄位 4. 改進差點顯示格式
+[33m119c1ed[m 新增分組結果導出 Excel 功能
+[33mf6b904f[m feat: 完成備註功能，確保備註在各頁面間同步並持久化保存
+[33m813f528[m Fix frontend startup issues: Add index.css and clean up index.js
+[33m54305bc[m Initial commit
