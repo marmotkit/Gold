@@ -49,7 +49,8 @@ function ParticipantManagement({ tournament }) {
     member_number: '',
     name: '',
     handicap: '',
-    pre_group_code: ''
+    pre_group_code: '',
+    tournament_id: ''  // 添加 tournament_id 參數
   });
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
@@ -117,6 +118,7 @@ function ParticipantManagement({ tournament }) {
       setIsImporting(true);
       const formData = new FormData();
       formData.append('file', selectedFile);
+      formData.append('tournament_id', tournament.id);  // 添加 tournament_id
 
       console.log('Sending import request to:', `${config.API_BASE_URL}/api/v1/tournaments/${tournament.id}/import`);
 
@@ -135,7 +137,7 @@ function ParticipantManagement({ tournament }) {
 
       const result = await response.json();
       setImportProgress(100);  // 完成時設為100%
-      setSnackbarMessage(`成功匯入 ${result.imported} 筆資料，更新 ${result.updated} 筆資料`);
+      setSnackbarMessage(`成功匯入 ${result.imported_count} 筆資料，更新 ${result.updated_count} 筆資料`);
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
       loadParticipants();  // 重新載入參賽者列表
@@ -158,7 +160,8 @@ function ParticipantManagement({ tournament }) {
       member_number: participant.member_number,
       name: participant.name,
       handicap: participant.handicap,
-      pre_group_code: participant.pre_group_code
+      pre_group_code: participant.pre_group_code,
+      tournament_id: participant.tournament_id  // 添加 tournament_id 參數
     });
     setOpen(true);
   };
@@ -279,7 +282,8 @@ function ParticipantManagement({ tournament }) {
       member_number: '',
       name: '',
       handicap: '',
-      pre_group_code: ''
+      pre_group_code: '',
+      tournament_id: ''  // 添加 tournament_id 參數
     });
   };
 
