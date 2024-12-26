@@ -425,7 +425,7 @@ def import_participants(tournament_id):
                 participant.handicap = float(row['差點']) if pd.notna(row['差點']) else 0
                 participant.pre_group_code = str(pre_group_code) if pre_group_code is not None else ''
                 participant.notes = str(row['備註']) if pd.notna(row.get('備註')) else ''
-                participant.gender = 'M' if str(row['會員編號']).startswith('M') else 'F'
+                participant.gender = 'F' if str(row['會員編號']).startswith('F') else 'M'
                 updated_count += 1
             else:
                 # 為新參賽者生成報名序號 (A01, A02, ...)
@@ -442,7 +442,7 @@ def import_participants(tournament_id):
                     handicap=float(row['差點']) if pd.notna(row['差點']) else 0,
                     pre_group_code=str(pre_group_code) if pre_group_code is not None else '',
                     notes=str(row['備註']) if pd.notna(row.get('備註')) else '',
-                    gender='M' if str(row['會員編號']).startswith('M') else 'F'
+                    gender='F' if str(row['會員編號']).startswith('F') else 'M'
                 )
                 db.session.add(new_participant)
                 imported_count += 1
@@ -806,8 +806,8 @@ def import_participants():
             
             print(f"處理參賽者：{name}, 會員編號：{member_number}")
             
-            # 根據會員編號判斷性別：M 開頭是男生，其他是女生
-            gender = 'M' if member_number.startswith('M') else 'F'
+            # 根據會員編號判斷性別：F 開頭是女生，其他都是男生
+            gender = 'F' if member_number and member_number.startswith('F') else 'M'
             print(f"判斷性別：{gender} (根據會員編號：{member_number})")
             
             # 檢查是否已存在
@@ -868,9 +868,9 @@ def update_all_genders():
         updated_count = 0
         
         for participant in participants:
-            # 根據會員編號判斷性別：M 開頭是男生，其他是女生
+            # 根據會員編號判斷性別：F 開頭是女生，其他都是男生
             member_number = participant.member_number
-            new_gender = 'M' if member_number and member_number.startswith('M') else 'F'
+            new_gender = 'F' if member_number and member_number.startswith('F') else 'M'
             
             if participant.gender != new_gender:
                 participant.gender = new_gender
