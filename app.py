@@ -798,23 +798,23 @@ def import_participants():
             member_number = str(row.get('會員編號', ''))
             original_reg_number = str(row.get('報名序號', ''))
             
-            # 保存原始的第二部分（用於判斷性別）
-            second_part = original_reg_number.split('/')[1] if '/' in original_reg_number else ''
+            # 根據會員編號判斷性別
+            gender = 'F' if member_number.startswith('F') else 'M'
             
             # 檢查是否已存在
             existing = next((p for p in existing_participants if p.member_number == member_number), None)
             
             if existing:
-                # 更新現有參賽者，但保留原始的報名序號
+                # 更新現有參賽者
                 existing.name = str(row.get('姓名', ''))
                 existing.handicap = str(row.get('差點', ''))
                 existing.pre_group_code = str(row.get('預分組', ''))
-                existing.gender = 'F' if second_part.startswith('F') else 'M'
+                existing.gender = gender
                 updated_count += 1
             else:
-                # 為新參賽者生成報名序號，但保留原始的第二部分
+                # 為新參賽者生成報名序號
                 max_number += 1
-                new_reg_number = f"A{max_number:02d}/{second_part}"
+                new_reg_number = f"A{max_number:02d}/{original_reg_number.split('/')[1]}" if '/' in original_reg_number else f"A{max_number:02d}"
                 
                 participant = Participant(
                     tournament_id=tournament_id,
@@ -823,7 +823,7 @@ def import_participants():
                     name=str(row.get('姓名', '')),
                     handicap=str(row.get('差點', '')),
                     pre_group_code=str(row.get('預分組', '')),
-                    gender='F' if second_part.startswith('F') else 'M'
+                    gender=gender
                 )
                 db.session.add(participant)
                 imported_count += 1
@@ -846,9 +846,9 @@ def update_all_genders():
         updated_count = 0
         
         for participant in participants:
-            registration_number = participant.registration_number
-            # 從報名序號判斷性別（例如：A12/F40 中的 F40 表示女生）
-            new_gender = 'F' if '/' in registration_number and registration_number.split('/')[1].startswith('F') else 'M'
+            member_number = participant.member_number
+            # 根據會員編號判斷性別
+            new_gender = 'F' if member_number.startswith('F') else 'M'
             
             if participant.gender != new_gender:
                 participant.gender = new_gender
