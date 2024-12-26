@@ -779,25 +779,61 @@ def import_participants():
             return jsonify({'error': 'Missing required data'}), 400
             
         df = pd.read_excel(file)
+        existing_participants = Participant.query.filter_by(tournament_id=tournament_id).all()
+        max_number = 0
+        
+        # 找出目前最大的序號
+        for p in existing_participants:
+            if p.registration_number.startswith('A'):
+                try:
+                    number = int(p.registration_number.split('/')[0][1:])
+                    max_number = max(max_number, number)
+                except ValueError:
+                    pass
+
+        imported_count = 0
+        updated_count = 0
         
         for _, row in df.iterrows():
-            registration_number = str(row.get('報名序號', ''))
-            # 從報名序號判斷性別（例如：A12/F40 中的 F40 表示女生）
-            gender = 'F' if '/' in registration_number and registration_number.split('/')[1].startswith('F') else 'M'
+            member_number = str(row.get('會員編號', ''))
+            original_reg_number = str(row.get('報名序號', ''))
             
-            participant = Participant(
-                tournament_id=tournament_id,
-                registration_number=registration_number,
-                member_number=str(row.get('會員編號', '')),
-                name=str(row.get('姓名', '')),
-                handicap=str(row.get('差點', '')),
-                pre_group_code=str(row.get('預分組', '')),
-                gender=gender
-            )
-            db.session.add(participant)
+            # 保存原始的第二部分（用於判斷性別）
+            second_part = original_reg_number.split('/')[1] if '/' in original_reg_number else ''
+            
+            # 檢查是否已存在
+            existing = next((p for p in existing_participants if p.member_number == member_number), None)
+            
+            if existing:
+                # 更新現有參賽者，但保留原始的報名序號
+                existing.name = str(row.get('姓名', ''))
+                existing.handicap = str(row.get('差點', ''))
+                existing.pre_group_code = str(row.get('預分組', ''))
+                existing.gender = 'F' if second_part.startswith('F') else 'M'
+                updated_count += 1
+            else:
+                # 為新參賽者生成報名序號，但保留原始的第二部分
+                max_number += 1
+                new_reg_number = f"A{max_number:02d}/{second_part}"
+                
+                participant = Participant(
+                    tournament_id=tournament_id,
+                    registration_number=new_reg_number,
+                    member_number=member_number,
+                    name=str(row.get('姓名', '')),
+                    handicap=str(row.get('差點', '')),
+                    pre_group_code=str(row.get('預分組', '')),
+                    gender='F' if second_part.startswith('F') else 'M'
+                )
+                db.session.add(participant)
+                imported_count += 1
             
         db.session.commit()
-        return jsonify({'message': 'Participants imported successfully'})
+        return jsonify({
+            'message': f'Successfully imported {imported_count} and updated {updated_count} participants',
+            'imported_count': imported_count,
+            'updated_count': updated_count
+        })
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 400
