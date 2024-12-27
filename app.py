@@ -203,6 +203,73 @@ def add_tournament_participant(tournament_id):
         app.logger.error(f"Error adding participant: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/v1/tournaments/<int:tournament_id>/import', methods=['POST'])
+def import_participants(tournament_id):
+    """匯入參賽者名單"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': '未找到上傳的檔案'}), 400
+
+        file = request.files['file']
+        if not file:
+            return jsonify({'error': '未選擇檔案'}), 400
+
+        # 確認賽事存在
+        tournament = Tournament.query.get_or_404(tournament_id)
+
+        # 讀取 Excel 檔案
+        df = pd.read_excel(file)
+
+        # 初始化計數器
+        imported_count = 0
+        updated_count = 0
+
+        # 處理每一行資料
+        for _, row in df.iterrows():
+            # 檢查必要欄位
+            if pd.isna(row.get('報名序號')) or pd.isna(row.get('姓名')):
+                continue
+
+            # 嘗試查找現有參賽者
+            participant = Participant.query.filter_by(
+                tournament_id=tournament_id,
+                registration_number=str(row['報名序號'])
+            ).first()
+
+            if participant:
+                # 更新現有參賽者
+                participant.name = row.get('姓名', participant.name)
+                participant.member_number = str(row.get('會員編號', '')) if not pd.isna(row.get('會員編號')) else participant.member_number
+                participant.handicap = str(row.get('差點', '')) if not pd.isna(row.get('差點')) else participant.handicap
+                participant.pre_group_code = str(row.get('預編組', '')) if not pd.isna(row.get('預編組')) else participant.pre_group_code
+                participant.gender = str(row.get('性別', 'M')) if not pd.isna(row.get('性別')) else participant.gender
+                updated_count += 1
+            else:
+                # 創建新參賽者
+                participant = Participant(
+                    tournament_id=tournament_id,
+                    registration_number=str(row['報名序號']),
+                    name=row['姓名'],
+                    member_number=str(row.get('會員編號', '')) if not pd.isna(row.get('會員編號')) else '',
+                    handicap=str(row.get('差點', '')) if not pd.isna(row.get('差點')) else '',
+                    pre_group_code=str(row.get('預編組', '')) if not pd.isna(row.get('預編組')) else '',
+                    gender=str(row.get('性別', 'M')) if not pd.isna(row.get('性別')) else 'M'
+                )
+                db.session.add(participant)
+                imported_count += 1
+
+        db.session.commit()
+        return jsonify({
+            'message': '匯入成功',
+            'imported_count': imported_count,
+            'updated_count': updated_count
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error importing participants: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
