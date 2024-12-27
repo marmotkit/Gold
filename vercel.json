@@ -1,11 +1,13 @@
 {
   "version": 2,
-  "buildCommand": "cd frontend && npm install && npm run build",
-  "outputDirectory": "frontend/build",
   "builds": [
     {
       "src": "app.py",
       "use": "@vercel/python"
+    },
+    {
+      "src": "frontend/build/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
@@ -14,11 +16,8 @@
       "dest": "app.py"
     },
     {
-      "handle": "filesystem"
-    },
-    {
       "src": "/(.*)",
-      "dest": "/frontend/build/index.html"
+      "dest": "frontend/build/$1"
     }
   ]
 }
