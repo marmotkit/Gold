@@ -118,6 +118,14 @@ function ParticipantManagement({ tournament }) {
       return;
     }
 
+    // 檢查檔案類型
+    if (!selectedFile.name.match(/\.(xlsx|xls)$/)) {
+      setSnackbarMessage('請選擇 Excel 檔案 (.xlsx 或 .xls)');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      return;
+    }
+
     try {
       setIsImporting(true);
       setImportProgress(10);
@@ -129,48 +137,46 @@ function ParticipantManagement({ tournament }) {
         `${config.API_BASE_URL}/api/v1/tournaments/${tournament.id}/participants/import`,
         {
           method: 'POST',
-          body: formData
+          body: formData,
+          headers: {
+            // 不要設置 Content-Type，讓瀏覽器自動設置正確的 multipart/form-data
+          }
         }
       );
 
       setImportProgress(50);
 
+      const result = await response.json();
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '匯入失敗');
+        throw new Error(result.error || '匯入失敗');
       }
 
-      const result = await response.json();
       setImportProgress(100);
-      
-      setSnackbarMessage(result.message);
+      setSnackbarMessage(result.message || '匯入成功！');
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
       
+      // 重新載入參賽者列表
       await loadParticipants();
+      
+      // 清除檔案選擇
       setSelectedFile(null);
+      
+      // 如果有檔案輸入元素，清除其值
+      const fileInput = document.querySelector('input[type="file"]');
+      if (fileInput) {
+        fileInput.value = '';
+      }
     } catch (error) {
       console.error('Error importing participants:', error);
-      setSnackbarMessage(error.message || '匯入失敗');
+      setSnackbarMessage(error.message || '匯入失敗，請確認檔案格式是否正確');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
     } finally {
       setIsImporting(false);
       setImportProgress(0);
     }
-  };
-
-  const handleEditClick = (participant) => {
-    setEditingParticipant(participant);
-    setFormData({
-      registration_number: participant.registration_number,
-      member_number: participant.member_number,
-      name: participant.name,
-      handicap: participant.handicap,
-      pre_group_code: participant.pre_group_code,
-      tournament_id: participant.tournament_id  // 添加 tournament_id 參數
-    });
-    setOpen(true);
   };
 
   const handleDeleteClick = async (participantId) => {
