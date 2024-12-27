@@ -146,7 +146,9 @@ function ParticipantManagement({ tournament }) {
         body: formData,
         headers: {
           'Accept': 'application/json'
-        }
+        },
+        credentials: 'include',
+        mode: 'cors'
       });
 
       console.log('收到回應:', {

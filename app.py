@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, make_response
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
@@ -10,11 +10,14 @@ import io
 from flask import send_file
 
 app = Flask(__name__)
+
+# 配置 CORS
 CORS(app, resources={
-    r"/api/v1/*": {
+    r"/*": {
         "origins": ["http://localhost:3000", "https://gold-tawny.vercel.app"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type"]
+        "allow_headers": ["Content-Type", "Accept"],
+        "supports_credentials": True
     }
 })
 
