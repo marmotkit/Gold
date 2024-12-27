@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, send_from_directory, make_response
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 from datetime import datetime
 import os
 import pandas as pd
@@ -12,12 +12,7 @@ from flask import send_file
 app = Flask(__name__)
 
 # 配置 CORS
-CORS(app, 
-     origins=["https://gold-tawny.vercel.app"],
-     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-     allow_headers=["Content-Type", "Accept"],
-     supports_credentials=True,
-     max_age=86400)
+CORS(app)
 
 # 配置資料庫
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -212,17 +207,16 @@ def add_tournament_participant(tournament_id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/tournaments/<int:tournament_id>/participants/import', methods=['POST', 'OPTIONS'])
+@cross_origin(
+    origins=["https://gold-tawny.vercel.app"],
+    methods=["POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Accept"],
+    supports_credentials=True,
+    max_age=86400
+)
 def import_participants(tournament_id):
     if request.method == 'OPTIONS':
-        response = make_response()
-        origin = request.headers.get('Origin')
-        if origin in ["https://gold-tawny.vercel.app"]:
-            response.headers.add('Access-Control-Allow-Origin', origin)
-            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Accept')
-            response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
-            response.headers.add('Access-Control-Allow-Credentials', 'true')
-            response.headers.add('Access-Control-Max-Age', '86400')
-        return response
+        return '', 204
 
     app.logger.info(f'開始匯入賽事 {tournament_id} 的參賽者')
     app.logger.info(f'請求標頭: {request.headers}')
@@ -289,27 +283,17 @@ def import_participants(tournament_id):
         db.session.commit()
         app.logger.info(f'成功匯入 {success_count} 筆資料，失敗 {error_count} 筆')
 
-        response = make_response(jsonify({
+        return jsonify({
             'message': f'成功匯入 {success_count} 筆資料',
             'success_count': success_count,
             'error_count': error_count,
             'errors': errors
-        }))
-        origin = request.headers.get('Origin')
-        if origin in ["https://gold-tawny.vercel.app"]:
-            response.headers.add('Access-Control-Allow-Origin', origin)
-            response.headers.add('Access-Control-Allow-Credentials', 'true')
-        return response, 200
+        }), 200
 
     except Exception as e:
         app.logger.error(f'匯入過程發生錯誤: {str(e)}')
         db.session.rollback()
-        response = make_response(jsonify({'error': f'匯入失敗: {str(e)}'}))
-        origin = request.headers.get('Origin')
-        if origin in ["https://gold-tawny.vercel.app"]:
-            response.headers.add('Access-Control-Allow-Origin', origin)
-            response.headers.add('Access-Control-Allow-Credentials', 'true')
-        return response, 500
+        return jsonify({'error': f'匯入失敗: {str(e)}'}), 500
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
