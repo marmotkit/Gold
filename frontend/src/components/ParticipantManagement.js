@@ -157,6 +157,16 @@ function ParticipantManagement({ tournament }) {
         headers: Object.fromEntries(response.headers.entries())
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('錯誤回應內容:', errorText);
+        throw new Error(
+          response.status === 405 ? '伺服器不支援此操作' :
+          errorText.includes('<!DOCTYPE html>') ? '伺服器回應格式錯誤' :
+          `匯入失敗 (${response.status})`
+        );
+      }
+
       setImportProgress(50);
 
       const responseText = await response.text();
@@ -169,11 +179,11 @@ function ParticipantManagement({ tournament }) {
       } catch (e) {
         console.error('JSON 解析錯誤:', e);
         console.log('無法解析的回應內容:', responseText);
-        throw new Error(`伺服器回應格式錯誤: ${responseText.substring(0, 100)}...`);
-      }
-
-      if (!response.ok) {
-        throw new Error(result.error || `匯入失敗 (${response.status})`);
+        throw new Error(
+          responseText.includes('<!DOCTYPE html>') ? 
+          '伺服器回應格式錯誤' : 
+          `無法解析的回應: ${responseText.substring(0, 100)}...`
+        );
       }
 
       setImportProgress(100);
@@ -192,10 +202,7 @@ function ParticipantManagement({ tournament }) {
       }
     } catch (error) {
       console.error('匯入過程發生錯誤:', error);
-      setSnackbarMessage(
-        error.message || 
-        (error.response?.status === 405 ? '伺服器不支援此操作' : '匯入失敗，請確認檔案格式是否正確')
-      );
+      setSnackbarMessage(error.message || '匯入失敗，請確認檔案格式是否正確');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
     } finally {
