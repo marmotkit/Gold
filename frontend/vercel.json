@@ -1,4 +1,8 @@
 {
+  "buildCommand": "npm install && npm run build",
+  "outputDirectory": "build",
+  "devCommand": "npm run start",
+  "installCommand": "npm install",
   "rewrites": [
     {
       "source": "/(.*)",

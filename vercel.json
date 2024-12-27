@@ -6,12 +6,8 @@
       "use": "@vercel/python"
     },
     {
-      "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "build",
-        "buildCommand": "cd frontend && npm ci && npm run build"
-      }
+      "src": "frontend",
+      "use": "@vercel/static-build"
     }
   ],
   "routes": [
@@ -20,11 +16,20 @@
       "dest": "app.py"
     },
     {
-      "handle": "filesystem"
+      "src": "^/static/(.*)",
+      "dest": "frontend/build/static/$1"
     },
     {
-      "src": "/(.*)",
-      "dest": "/frontend/build/index.html"
+      "src": "^/favicon.ico",
+      "dest": "frontend/build/favicon.ico"
+    },
+    {
+      "src": "^/manifest.json",
+      "dest": "frontend/build/manifest.json"
+    },
+    {
+      "src": "^/(.*)",
+      "dest": "frontend/build/index.html"
     }
   ]
 }
