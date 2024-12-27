@@ -11,20 +11,13 @@ from flask import send_file
 
 app = Flask(__name__)
 
-# 從環境變數獲取 CORS 配置
-CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'https://gold-tawny.vercel.app')
-allowed_origins = [origin.strip() for origin in CORS_ALLOWED_ORIGINS.split(',')]
-
 # 配置 CORS
-CORS(app, resources={
-    r"/*": {
-        "origins": allowed_origins,
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Accept"],
-        "supports_credentials": True,
-        "max_age": 86400
-    }
-})
+CORS(app, 
+     origins=["https://gold-tawny.vercel.app"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+     allow_headers=["Content-Type", "Accept"],
+     supports_credentials=True,
+     max_age=86400)
 
 # 配置資料庫
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -32,18 +25,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(basedir, "inst
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ECHO'] = True
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 限制上傳檔案大小為 16MB
-
-# 配置 CORS headers
-@app.after_request
-def after_request(response):
-    origin = request.headers.get('Origin')
-    if origin in allowed_origins:
-        response.headers.add('Access-Control-Allow-Origin', origin)
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Accept')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-        response.headers.add('Access-Control-Max-Age', '86400')
-    return response
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
@@ -235,7 +216,7 @@ def import_participants(tournament_id):
     if request.method == 'OPTIONS':
         response = make_response()
         origin = request.headers.get('Origin')
-        if origin in allowed_origins:
+        if origin in ["https://gold-tawny.vercel.app"]:
             response.headers.add('Access-Control-Allow-Origin', origin)
             response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Accept')
             response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
@@ -315,7 +296,7 @@ def import_participants(tournament_id):
             'errors': errors
         }))
         origin = request.headers.get('Origin')
-        if origin in allowed_origins:
+        if origin in ["https://gold-tawny.vercel.app"]:
             response.headers.add('Access-Control-Allow-Origin', origin)
             response.headers.add('Access-Control-Allow-Credentials', 'true')
         return response, 200
@@ -325,7 +306,7 @@ def import_participants(tournament_id):
         db.session.rollback()
         response = make_response(jsonify({'error': f'匯入失敗: {str(e)}'}))
         origin = request.headers.get('Origin')
-        if origin in allowed_origins:
+        if origin in ["https://gold-tawny.vercel.app"]:
             response.headers.add('Access-Control-Allow-Origin', origin)
             response.headers.add('Access-Control-Allow-Credentials', 'true')
         return response, 500
