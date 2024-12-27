@@ -11,10 +11,9 @@ services:
         value: app.py
       - key: FLASK_ENV
         value: production
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://gold-tawny.vercel.app"
     routes:
-      - type: rewrite
-        source: /api/v1/*
-        destination: /$1
       - type: rewrite
         source: /*
         destination: /$1
@@ -31,6 +30,9 @@ services:
       - path: /*
         name: Access-Control-Allow-Credentials
         value: "true"
+      - path: /*
+        name: Access-Control-Max-Age
+        value: "86400"
 
 databases:
   - name: golf-tournament-db
