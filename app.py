@@ -203,7 +203,7 @@ def add_tournament_participant(tournament_id):
         app.logger.error(f"Error adding participant: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/v1/tournaments/<int:tournament_id>/import', methods=['POST'])
+@app.route('/api/v1/tournaments/<int:tournament_id>/participants/import', methods=['POST'])
 def import_participants(tournament_id):
     """匯入參賽者名單"""
     try:
@@ -218,52 +218,85 @@ def import_participants(tournament_id):
         tournament = Tournament.query.get_or_404(tournament_id)
 
         # 讀取 Excel 檔案
-        df = pd.read_excel(file)
+        import pandas as pd
+        import io
+
+        # 讀取檔案內容到記憶體
+        file_content = file.read()
+        
+        try:
+            # 嘗試讀取 Excel 檔案
+            df = pd.read_excel(io.BytesIO(file_content))
+        except Exception as e:
+            app.logger.error(f"Error reading Excel file: {str(e)}")
+            return jsonify({'error': '無法讀取 Excel 檔案，請確認檔案格式是否正確'}), 400
+
+        # 檢查必要欄位
+        required_columns = ['報名序號', '姓名']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            return jsonify({'error': f'缺少必要欄位：{", ".join(missing_columns)}'}), 400
 
         # 初始化計數器
         imported_count = 0
         updated_count = 0
 
         # 處理每一行資料
-        for _, row in df.iterrows():
-            # 檢查必要欄位
-            if pd.isna(row.get('報名序號')) or pd.isna(row.get('姓名')):
+        for index, row in df.iterrows():
+            try:
+                # 檢查必要欄位是否有值
+                if pd.isna(row['報名序號']) or pd.isna(row['姓名']):
+                    continue
+
+                # 格式化報名序號（確保為字串）
+                registration_number = str(int(row['報名序號']) if isinstance(row['報名序號'], (int, float)) else row['報名序號'])
+
+                # 嘗試查找現有參賽者
+                participant = Participant.query.filter_by(
+                    tournament_id=tournament_id,
+                    registration_number=registration_number
+                ).first()
+
+                # 準備參賽者資料
+                participant_data = {
+                    'name': str(row['姓名']),
+                    'member_number': str(row['會員編號']) if '會員編號' in df.columns and not pd.isna(row['會員編號']) else '',
+                    'handicap': str(row['差點']) if '差點' in df.columns and not pd.isna(row['差點']) else '',
+                    'pre_group_code': str(int(row['預編組'])) if '預編組' in df.columns and not pd.isna(row['預編組']) else '',
+                    'gender': str(row['性別']) if '性別' in df.columns and not pd.isna(row['性別']) else 'M'
+                }
+
+                if participant:
+                    # 更新現有參賽者
+                    for key, value in participant_data.items():
+                        setattr(participant, key, value)
+                    updated_count += 1
+                else:
+                    # 創建新參賽者
+                    participant = Participant(
+                        tournament_id=tournament_id,
+                        registration_number=registration_number,
+                        **participant_data
+                    )
+                    db.session.add(participant)
+                    imported_count += 1
+
+            except Exception as e:
+                app.logger.error(f"Error processing row {index}: {str(e)}")
                 continue
 
-            # 嘗試查找現有參賽者
-            participant = Participant.query.filter_by(
-                tournament_id=tournament_id,
-                registration_number=str(row['報名序號'])
-            ).first()
-
-            if participant:
-                # 更新現有參賽者
-                participant.name = row.get('姓名', participant.name)
-                participant.member_number = str(row.get('會員編號', '')) if not pd.isna(row.get('會員編號')) else participant.member_number
-                participant.handicap = str(row.get('差點', '')) if not pd.isna(row.get('差點')) else participant.handicap
-                participant.pre_group_code = str(row.get('預編組', '')) if not pd.isna(row.get('預編組')) else participant.pre_group_code
-                participant.gender = str(row.get('性別', 'M')) if not pd.isna(row.get('性別')) else participant.gender
-                updated_count += 1
-            else:
-                # 創建新參賽者
-                participant = Participant(
-                    tournament_id=tournament_id,
-                    registration_number=str(row['報名序號']),
-                    name=row['姓名'],
-                    member_number=str(row.get('會員編號', '')) if not pd.isna(row.get('會員編號')) else '',
-                    handicap=str(row.get('差點', '')) if not pd.isna(row.get('差點')) else '',
-                    pre_group_code=str(row.get('預編組', '')) if not pd.isna(row.get('預編組')) else '',
-                    gender=str(row.get('性別', 'M')) if not pd.isna(row.get('性別')) else 'M'
-                )
-                db.session.add(participant)
-                imported_count += 1
-
-        db.session.commit()
-        return jsonify({
-            'message': '匯入成功',
-            'imported_count': imported_count,
-            'updated_count': updated_count
-        })
+        # 提交所有更改
+        try:
+            db.session.commit()
+            return jsonify({
+                'message': f'成功匯入 {imported_count} 筆資料，更新 {updated_count} 筆資料',
+                'imported_count': imported_count,
+                'updated_count': updated_count
+            })
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error committing changes: {str(e)}")
+            return jsonify({'error': '儲存資料時發生錯誤'}), 500
 
     except Exception as e:
         db.session.rollback()

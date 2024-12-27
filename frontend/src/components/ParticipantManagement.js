@@ -105,30 +105,35 @@ function ParticipantManagement({ tournament }) {
 
   const handleImport = async () => {
     if (!selectedFile) {
-      setError('請選擇檔案');
+      setSnackbarMessage('請選擇檔案');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
       return;
     }
 
     if (!tournament?.id) {
-      setError('請先選擇賽事');
+      setSnackbarMessage('請先選擇賽事');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
       return;
     }
 
     try {
       setIsImporting(true);
+      setImportProgress(10);
+
       const formData = new FormData();
       formData.append('file', selectedFile);
-      formData.append('tournament_id', tournament.id);  // 添加 tournament_id
-
-      console.log('Sending import request to:', `${config.API_BASE_URL}/api/v1/tournaments/${tournament.id}/import`);
 
       const response = await fetch(
-        `${config.API_BASE_URL}/api/v1/tournaments/${tournament.id}/import`,
+        `${config.API_BASE_URL}/api/v1/tournaments/${tournament.id}/participants/import`,
         {
           method: 'POST',
-          body: formData,
+          body: formData
         }
       );
+
+      setImportProgress(50);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -136,20 +141,22 @@ function ParticipantManagement({ tournament }) {
       }
 
       const result = await response.json();
-      setImportProgress(100);  // 完成時設為100%
-      setSnackbarMessage(`成功匯入 ${result.imported_count} 筆資料，更新 ${result.updated_count} 筆資料`);
+      setImportProgress(100);
+      
+      setSnackbarMessage(result.message);
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
-      loadParticipants();  // 重新載入參賽者列表
-      setSelectedFile(null); // 清除選擇的檔案
+      
+      await loadParticipants();
+      setSelectedFile(null);
     } catch (error) {
       console.error('Error importing participants:', error);
-      setSnackbarMessage(`匯入失敗：${error.message}`);
+      setSnackbarMessage(error.message || '匯入失敗');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
     } finally {
       setIsImporting(false);
-      setImportProgress(0);  // 重置進度
+      setImportProgress(0);
     }
   };
 
