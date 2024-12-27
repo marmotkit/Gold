@@ -13,7 +13,7 @@ app = Flask(__name__)
 
 # 配置 CORS
 CORS(app, 
-     origins="https://gold-tawny.vercel.app",
+     origins=["http://localhost:3000"],
      supports_credentials=True)
 
 # 配置資料庫
