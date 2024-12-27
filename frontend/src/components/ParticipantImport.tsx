@@ -10,6 +10,8 @@ import {
 } from '@mui/material';
 import axios from 'axios';
 
+const API_BASE_URL = 'https://gold-l1xp.onrender.com';
+
 const ParticipantImport = () => {
   const { tournamentId } = useParams();
   const [loading, setLoading] = useState(false);
@@ -20,22 +22,46 @@ const ParticipantImport = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // 檢查檔案類型
+    if (!file.name.match(/\.(xlsx|xls)$/)) {
+      setError('請選擇 Excel 檔案 (.xlsx 或 .xls)');
+      return;
+    }
+
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('tournament_id', tournamentId || '');
 
     setLoading(true);
     setError(null);
     setSuccess(null);
 
     try {
-      await axios.post('http://localhost:5000/api/participants/import', formData);
-      setSuccess('參賽者名單匯入成功！');
-    } catch (error) {
-      setError('匯入失敗，請確認檔案格式是否正確');
+      const response = await axios.post(
+        `${API_BASE_URL}/api/v1/tournaments/${tournamentId}/participants/import`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      if (response.data.error) {
+        throw new Error(response.data.error);
+      }
+
+      setSuccess(`${response.data.message}`);
+      
+      // 觸發父組件的重新載入
+      window.location.reload();
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || error.message || '匯入失敗，請確認檔案格式是否正確';
+      setError(errorMessage);
       console.error('Error importing participants:', error);
     } finally {
       setLoading(false);
+      // 清除檔案選擇
+      event.target.value = '';
     }
   };
 
@@ -86,19 +112,27 @@ const ParticipantImport = () => {
       
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" sx={{ mb: 2 }}>1. 匯入參賽名單</Typography>
-        <Button
-          variant="contained"
-          component="label"
-          disabled={loading}
-        >
-          選擇檔案
-          <input
-            type="file"
-            hidden
-            accept=".xlsx,.xls"
-            onChange={handleParticipantImport}
-          />
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Button
+            variant="contained"
+            component="label"
+            disabled={loading}
+            sx={{ minWidth: '120px' }}
+          >
+            選擇檔案
+            <input
+              type="file"
+              hidden
+              accept=".xlsx,.xls"
+              onChange={handleParticipantImport}
+            />
+          </Button>
+          {loading && <CircularProgress size={24} />}
+        </Box>
+        
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+          支援的檔案格式：Excel (.xlsx, .xls)
+        </Typography>
       </Paper>
 
       <Paper sx={{ p: 3, mb: 3 }}>
@@ -136,13 +170,13 @@ const ParticipantImport = () => {
       )}
 
       {error && (
-        <Alert severity="error" sx={{ mt: 2 }}>
+        <Alert severity="error" sx={{ mt: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
 
       {success && (
-        <Alert severity="success" sx={{ mt: 2 }}>
+        <Alert severity="success" sx={{ mt: 2 }} onClose={() => setSuccess(null)}>
           {success}
         </Alert>
       )}
