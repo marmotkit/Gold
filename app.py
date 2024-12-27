@@ -210,131 +210,89 @@ def add_tournament_participant(tournament_id):
         app.logger.error(f"Error adding participant: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/v1/tournaments/<int:tournament_id>/participants/import', methods=['POST'])
+@app.route('/api/v1/tournaments/<int:tournament_id>/participants/import', methods=['POST', 'OPTIONS'])
 def import_participants(tournament_id):
-    """匯入參賽者名單"""
-    app.logger.info(f'開始匯入參賽者名單，賽事ID: {tournament_id}')
-    
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    app.logger.info(f'開始匯入賽事 {tournament_id} 的參賽者')
+    app.logger.info(f'請求標頭: {request.headers}')
+
+    if 'file' not in request.files:
+        app.logger.error('未找到上傳的檔案')
+        return jsonify({'error': '未找到上傳的檔案'}), 400
+
+    file = request.files['file']
+    if not file:
+        app.logger.error('檔案為空')
+        return jsonify({'error': '檔案為空'}), 400
+
+    if not file.filename:
+        app.logger.error('未指定檔案名稱')
+        return jsonify({'error': '未指定檔案名稱'}), 400
+
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        app.logger.error(f'不支援的檔案類型: {file.filename}')
+        return jsonify({'error': '請上傳 Excel 檔案 (.xlsx 或 .xls)'}), 400
+
     try:
-        if 'file' not in request.files:
-            app.logger.error('未找到上傳的檔案')
-            return jsonify({'error': '未找到上傳的檔案'}), 400
-
-        file = request.files['file']
-        if not file:
-            app.logger.error('未選擇檔案')
-            return jsonify({'error': '未選擇檔案'}), 400
-
-        app.logger.info(f'收到檔案: {file.filename}')
-
-        # 確認賽事存在
-        tournament = Tournament.query.get_or_404(tournament_id)
-        app.logger.info(f'找到賽事: {tournament.name}')
-
         # 讀取 Excel 檔案
-        import pandas as pd
-        import io
-
-        # 讀取檔案內容到記憶體
-        file_content = file.read()
-        app.logger.info(f'檔案大小: {len(file_content)} bytes')
-        
-        try:
-            # 嘗試讀取 Excel 檔案
-            df = pd.read_excel(io.BytesIO(file_content))
-            app.logger.info(f'成功讀取 Excel 檔案，共 {len(df)} 行，欄位: {list(df.columns)}')
-        except Exception as e:
-            app.logger.error(f'讀取 Excel 檔案失敗: {str(e)}')
-            return jsonify({'error': f'無法讀取 Excel 檔案，錯誤訊息: {str(e)}'}), 400
+        df = pd.read_excel(file)
+        app.logger.info(f'成功讀取 Excel 檔案，共 {len(df)} 筆資料')
 
         # 檢查必要欄位
-        required_columns = ['報名序號', '姓名']
+        required_columns = ['姓名', '差點', '性別']
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             app.logger.error(f'缺少必要欄位: {missing_columns}')
-            return jsonify({'error': f'缺少必要欄位：{", ".join(missing_columns)}'}), 400
+            return jsonify({'error': f'Excel 檔案缺少必要欄位: {", ".join(missing_columns)}'}), 400
 
-        # 初始化計數器
-        imported_count = 0
-        updated_count = 0
+        # 取得賽事資訊
+        tournament = Tournament.query.get(tournament_id)
+        if not tournament:
+            app.logger.error(f'找不到賽事 {tournament_id}')
+            return jsonify({'error': '找不到指定的賽事'}), 404
+
+        # 清除現有參賽者
+        Participant.query.filter_by(tournament_id=tournament_id).delete()
+        app.logger.info(f'已清除賽事 {tournament_id} 的現有參賽者')
+
+        # 匯入新參賽者
+        success_count = 0
         error_count = 0
-        error_details = []
+        errors = []
 
-        # 處理每一行資料
         for index, row in df.iterrows():
             try:
-                # 檢查必要欄位是否有值
-                if pd.isna(row['報名序號']) or pd.isna(row['姓名']):
-                    app.logger.warning(f'第 {index + 2} 行缺少必要資料，跳過')
-                    error_count += 1
-                    error_details.append(f'第 {index + 2} 行: 報名序號或姓名為空')
-                    continue
-
-                # 格式化報名序號（確保為字串）
-                registration_number = str(int(row['報名序號']) if isinstance(row['報名序號'], (int, float)) else row['報名序號'])
-                app.logger.debug(f'處理第 {index + 2} 行，報名序號: {registration_number}')
-
-                # 嘗試查找現有參賽者
-                participant = Participant.query.filter_by(
+                participant = Participant(
                     tournament_id=tournament_id,
-                    registration_number=registration_number
-                ).first()
-
-                # 準備參賽者資料
-                participant_data = {
-                    'name': str(row['姓名']),
-                    'member_number': str(row['會員編號']) if '會員編號' in df.columns and not pd.isna(row['會員編號']) else '',
-                    'handicap': str(row['差點']) if '差點' in df.columns and not pd.isna(row['差點']) else '',
-                    'pre_group_code': str(int(row['預編組'])) if '預編組' in df.columns and not pd.isna(row['預編組']) else '',
-                    'gender': str(row['性別']) if '性別' in df.columns and not pd.isna(row['性別']) else 'M'
-                }
-
-                if participant:
-                    # 更新現有參賽者
-                    for key, value in participant_data.items():
-                        setattr(participant, key, value)
-                    updated_count += 1
-                    app.logger.debug(f'更新參賽者: {registration_number} - {participant_data["name"]}')
-                else:
-                    # 創建新參賽者
-                    participant = Participant(
-                        tournament_id=tournament_id,
-                        registration_number=registration_number,
-                        **participant_data
-                    )
-                    db.session.add(participant)
-                    imported_count += 1
-                    app.logger.debug(f'新增參賽者: {registration_number} - {participant_data["name"]}')
-
+                    name=row['姓名'].strip(),
+                    handicap=float(row['差點']),
+                    gender=row['性別'].strip()
+                )
+                db.session.add(participant)
+                success_count += 1
             except Exception as e:
-                app.logger.error(f'處理第 {index + 2} 行時發生錯誤: {str(e)}')
                 error_count += 1
-                error_details.append(f'第 {index + 2} 行: {str(e)}')
-                continue
+                errors.append(f'第 {index + 2} 行: {str(e)}')
+                app.logger.error(f'匯入第 {index + 2} 行時發生錯誤: {str(e)}')
 
-        # 提交所有更改
-        try:
-            db.session.commit()
-            result = {
-                'message': f'成功匯入 {imported_count} 筆資料，更新 {updated_count} 筆資料',
-                'imported_count': imported_count,
-                'updated_count': updated_count
-            }
-            if error_count > 0:
-                result['warning'] = f'有 {error_count} 筆資料處理失敗'
-                result['error_details'] = error_details
-            
-            app.logger.info(f'匯入完成: {result}')
-            return jsonify(result)
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f'儲存資料時發生錯誤: {str(e)}')
-            return jsonify({'error': f'儲存資料時發生錯誤: {str(e)}'}), 500
+        db.session.commit()
+        app.logger.info(f'成功匯入 {success_count} 筆資料，失敗 {error_count} 筆')
+
+        response = {
+            'message': f'成功匯入 {success_count} 筆資料',
+            'success_count': success_count,
+            'error_count': error_count,
+            'errors': errors
+        }
+
+        return jsonify(response), 200
 
     except Exception as e:
-        db.session.rollback()
         app.logger.error(f'匯入過程發生錯誤: {str(e)}')
-        return jsonify({'error': str(e)}), 500
+        db.session.rollback()
+        return jsonify({'error': f'匯入失敗: {str(e)}'}), 500
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
