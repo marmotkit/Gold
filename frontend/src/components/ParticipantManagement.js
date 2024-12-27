@@ -141,35 +141,16 @@ function ParticipantManagement({ tournament }) {
       const apiUrl = `${config.API_BASE_URL}/tournaments/${tournament.id}/participants/import`;
       console.log('準備發送請求到:', apiUrl);
       
-      // 先發送 OPTIONS 請求
-      const optionsResponse = await fetch(apiUrl, {
-        method: 'OPTIONS',
-        headers: {
-          'Accept': 'application/json',
-          'Origin': 'https://gold-tawny.vercel.app'
-        },
-        credentials: 'include'
-      });
-
-      console.log('OPTIONS 回應:', {
-        status: optionsResponse.status,
-        statusText: optionsResponse.statusText,
-        headers: Object.fromEntries(optionsResponse.headers.entries())
-      });
-
-      // 發送 POST 請求
       const response = await fetch(apiUrl, {
         method: 'POST',
         body: formData,
         headers: {
-          'Accept': 'application/json',
-          'Origin': 'https://gold-tawny.vercel.app'
+          'Accept': 'application/json'
         },
-        credentials: 'include',
-        mode: 'cors'
+        credentials: 'include'
       });
 
-      console.log('POST 回應:', {
+      console.log('收到回應:', {
         status: response.status,
         statusText: response.statusText,
         headers: Object.fromEntries(response.headers.entries())
