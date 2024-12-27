@@ -44,7 +44,7 @@ class Participant(db.Model):
     """參賽者模型"""
     id = db.Column(db.Integer, primary_key=True)
     tournament_id = db.Column(db.Integer, db.ForeignKey('tournament.id'), nullable=False)
-    registration_number = db.Column(db.String(50), nullable=False)
+    registration_number = db.Column(db.String(50))  # 改為可為空
     original_number = db.Column(db.String(50))
     member_number = db.Column(db.String(50))
     name = db.Column(db.String(100), nullable=False)
