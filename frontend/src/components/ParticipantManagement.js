@@ -104,6 +104,10 @@ function ParticipantManagement({ tournament }) {
   };
 
   const handleImport = async () => {
+    console.log('開始匯入流程');
+    console.log('選擇的檔案:', selectedFile?.name);
+    console.log('賽事ID:', tournament?.id);
+
     if (!selectedFile) {
       setSnackbarMessage('請選擇檔案');
       setSnackbarSeverity('error');
@@ -120,6 +124,7 @@ function ParticipantManagement({ tournament }) {
 
     // 檢查檔案類型
     if (!selectedFile.name.match(/\.(xlsx|xls)$/)) {
+      console.log('檔案類型不符:', selectedFile.name);
       setSnackbarMessage('請選擇 Excel 檔案 (.xlsx 或 .xls)');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
@@ -133,23 +138,40 @@ function ParticipantManagement({ tournament }) {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const response = await fetch(
-        `${config.API_BASE_URL}/api/v1/tournaments/${tournament.id}/participants/import`,
-        {
-          method: 'POST',
-          body: formData,
-          headers: {
-            // 不要設置 Content-Type，讓瀏覽器自動設置正確的 multipart/form-data
-          }
+      const apiUrl = `${config.API_BASE_URL}/tournaments/${tournament.id}/participants/import`;
+      console.log('準備發送請求到:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json'
         }
-      );
+      });
+
+      console.log('收到回應:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      });
 
       setImportProgress(50);
 
-      const result = await response.json();
-      
+      const responseText = await response.text();
+      console.log('回應內容:', responseText);
+
+      let result;
+      try {
+        result = JSON.parse(responseText);
+        console.log('解析後的回應:', result);
+      } catch (e) {
+        console.error('JSON 解析錯誤:', e);
+        console.log('無法解析的回應內容:', responseText);
+        throw new Error(`伺服器回應格式錯誤: ${responseText.substring(0, 100)}...`);
+      }
+
       if (!response.ok) {
-        throw new Error(result.error || '匯入失敗');
+        throw new Error(result.error || `匯入失敗 (${response.status})`);
       }
 
       setImportProgress(100);
@@ -157,20 +179,21 @@ function ParticipantManagement({ tournament }) {
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
       
-      // 重新載入參賽者列表
+      console.log('重新載入參賽者列表');
       await loadParticipants();
       
       // 清除檔案選擇
       setSelectedFile(null);
-      
-      // 如果有檔案輸入元素，清除其值
       const fileInput = document.querySelector('input[type="file"]');
       if (fileInput) {
         fileInput.value = '';
       }
     } catch (error) {
-      console.error('Error importing participants:', error);
-      setSnackbarMessage(error.message || '匯入失敗，請確認檔案格式是否正確');
+      console.error('匯入過程發生錯誤:', error);
+      setSnackbarMessage(
+        error.message || 
+        (error.response?.status === 405 ? '伺服器不支援此操作' : '匯入失敗，請確認檔案格式是否正確')
+      );
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
     } finally {
