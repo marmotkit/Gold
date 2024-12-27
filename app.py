@@ -210,10 +210,15 @@ def add_tournament_participant(tournament_id):
         app.logger.error(f"Error adding participant: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/v1/tournaments/<int:tournament_id>/participants/import', methods=['POST', 'OPTIONS'])
+@app.route('/tournaments/<int:tournament_id>/participants/import', methods=['POST', 'OPTIONS'])
 def import_participants(tournament_id):
     if request.method == 'OPTIONS':
-        return '', 204
+        response = make_response()
+        response.headers.add('Access-Control-Allow-Origin', 'https://gold-tawny.vercel.app')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Accept')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response
 
     app.logger.info(f'開始匯入賽事 {tournament_id} 的參賽者')
     app.logger.info(f'請求標頭: {request.headers}')
@@ -280,19 +285,21 @@ def import_participants(tournament_id):
         db.session.commit()
         app.logger.info(f'成功匯入 {success_count} 筆資料，失敗 {error_count} 筆')
 
-        response = {
+        response = jsonify({
             'message': f'成功匯入 {success_count} 筆資料',
             'success_count': success_count,
             'error_count': error_count,
             'errors': errors
-        }
-
-        return jsonify(response), 200
+        })
+        response.headers.add('Access-Control-Allow-Origin', 'https://gold-tawny.vercel.app')
+        return response, 200
 
     except Exception as e:
         app.logger.error(f'匯入過程發生錯誤: {str(e)}')
         db.session.rollback()
-        return jsonify({'error': f'匯入失敗: {str(e)}'}), 500
+        response = jsonify({'error': f'匯入失敗: {str(e)}'})
+        response.headers.add('Access-Control-Allow-Origin', 'https://gold-tawny.vercel.app')
+        return response, 500
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
