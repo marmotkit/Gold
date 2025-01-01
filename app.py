@@ -67,12 +67,27 @@ init_extensions(app)
 # 設置 CORS
 CORS(app, resources={
     r"/api/*": {
-        "origins": "*",
+        "origins": ["http://localhost:3000", "https://gold-tawny.vercel.app"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Accept", "Authorization"],
+        "supports_credentials": True,
         "max_age": 3600
     }
 })
+
+# 設置全局 CORS 響應頭
+@app.after_request
+def after_request(response):
+    origin = request.headers.get('Origin')
+    allowed_origins = ["http://localhost:3000", "https://gold-tawny.vercel.app"]
+    
+    if origin in allowed_origins:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept, Authorization'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Max-Age'] = '3600'
+    return response
 
 # 處理 OPTIONS 請求
 @app.route('/api/v1/tournaments', methods=['OPTIONS'])
@@ -150,6 +165,7 @@ def get_tournaments():
         print("收到獲取賽事列表請求")
         print(f"請求來源: {request.headers.get('Origin')}")
         print(f"請求方法: {request.method}")
+        print(f"請求頭部: {dict(request.headers)}")
         
         tournaments = Tournament.query.all()
         result = []

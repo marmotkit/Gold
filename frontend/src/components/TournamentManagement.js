@@ -35,11 +35,11 @@ function TournamentManagement({ onTournamentSelect }) {
   });
   const [loading, setLoading] = useState(false);
 
-  const API_BASE_URL = process.env.NODE_ENV === 'production'
-    ? 'https://gold-1.onrender.com/api/v1'
-    : 'http://localhost:8000/api/v1';
-
-  const PROXY_URL = 'https://cors-anywhere.herokuapp.com/';
+  const apiConfig = {
+    apiUrl: process.env.NODE_ENV === 'production'
+      ? 'https://gold-1.onrender.com/api/v1'
+      : 'http://localhost:8000/api/v1'
+  };
 
   useEffect(() => {
     loadTournaments();
@@ -50,18 +50,13 @@ function TournamentManagement({ onTournamentSelect }) {
       console.log('開始載入賽事列表...');
       setLoading(true);
 
-      const url = process.env.NODE_ENV === 'production'
-        ? `${PROXY_URL}${API_BASE_URL}/tournaments`
-        : `${API_BASE_URL}/tournaments`;
-
-      console.log('請求 URL:', url);
-      const response = await fetch(url, {
+      const response = await fetch(`${apiConfig.apiUrl}/tournaments`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
       });
 
       console.log('API 回應狀態:', response.status);
@@ -89,18 +84,13 @@ function TournamentManagement({ onTournamentSelect }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {
-      const url = process.env.NODE_ENV === 'production'
-        ? `${PROXY_URL}${API_BASE_URL}/tournaments`
-        : `${API_BASE_URL}/tournaments`;
-
-      console.log('請求 URL:', url);
-      const response = await fetch(url, {
+      const response = await fetch(`${apiConfig.apiUrl}/tournaments`, {
         method: editingTournament ? 'PUT' : 'POST',
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
+          'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({
           name: formData.name,
           date: formData.date
@@ -166,18 +156,13 @@ function TournamentManagement({ onTournamentSelect }) {
   const handleDelete = async (id) => {
     try {
       console.log(`開始刪除賽事 ID：${id}`);
-      const url = process.env.NODE_ENV === 'production'
-        ? `${PROXY_URL}${API_BASE_URL}/tournaments/${id}`
-        : `${API_BASE_URL}/tournaments/${id}`;
-
-      console.log('請求 URL:', url);
-      const response = await fetch(url, {
+      const response = await fetch(`${apiConfig.apiUrl}/tournaments/${id}`, {
         method: 'DELETE',
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
       });
 
       console.log('API 回應狀態:', response.status);

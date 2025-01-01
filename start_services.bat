@@ -1,0 +1,13 @@
+@echo off
+echo 正在停止所有 Node.js 進程...
+taskkill /F /IM node.exe /T 2>nul
+
+echo 啟動後端服務...
+start cmd /k "cd /d d:\KT\OneDrive_Local\OneDrive\Development\Gold && venv\Scripts\activate && python app.py"
+
+echo 等待 5 秒鐘...
+timeout /t 5
+
+echo 啟動前端服務...
+cd /d d:\KT\OneDrive_Local\OneDrive\Development\Gold\frontend
+npm start

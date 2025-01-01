@@ -1,0 +1,10 @@
+.git
+__pycache__
+frontend\node_modules
+frontend\build
+.pytest_cache
+.vscode
+.idea
+*.pyc
+backup.bat
+backup_exclude.txt

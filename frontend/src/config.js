@@ -1,4 +1,3 @@
-const PROXY_URL = 'https://cors-anywhere.herokuapp.com/';
 const BACKEND_URL = 'https://gold-1.onrender.com/api/v1';
 
 const config = {
@@ -6,7 +5,7 @@ const config = {
         apiUrl: 'http://localhost:8000/api/v1'
     },
     production: {
-        apiUrl: `${PROXY_URL}${BACKEND_URL}`
+        apiUrl: BACKEND_URL
     }
 };
 
