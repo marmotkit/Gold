@@ -67,8 +67,10 @@ init_extensions(app)
 # 設置 CORS
 CORS(app, resources={
     r"/api/*": {
-        "origins": [app.config['FRONTEND_URL']],
+        "origins": ["http://localhost:3000", "https://gold-tawny.vercel.app"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True
     }
 })
 
