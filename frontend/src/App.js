@@ -9,10 +9,10 @@ import {
   Tab,
   Paper
 } from '@mui/material';
-import TournamentManagement from './components/TournamentManagement';
 import ParticipantManagement from './components/ParticipantManagement';
 import GroupManagement from './components/GroupManagement';
 import CheckInManagement from './components/CheckInManagement';
+import TournamentManagement from './components/TournamentManagement';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -24,18 +24,15 @@ function TabPanel(props) {
       aria-labelledby={`tab-${index}`}
       {...other}
     >
-      {value === index && (
-        <Box sx={{ p: 3 }}>
-          {children}
-        </Box>
-      )}
+      {value === index && <Box p={3}>{children}</Box>}
     </div>
   );
 }
 
 function App() {
-  const [tabValue, setTabValue] = useState(0);
+  const [tabValue, setTabValue] = useState(0); 
   const [selectedTournament, setSelectedTournament] = useState(null);
+  const [version, setVersion] = useState(localStorage.getItem('appVersion') || '1.0');
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -44,12 +41,51 @@ function App() {
   const handleTournamentSelect = (tournament) => {
     console.log('Tournament selected:', tournament);
     setSelectedTournament(tournament);
-    // 選擇賽事後自動切換到參賽者管理頁面
-    setTabValue(1);
+    // 移除 setTabValue(0); 讓用戶保持在當前標籤
+  };
+
+  const handleVersionClick = (event) => {
+    event.preventDefault();
+    
+    setVersion(prevVersion => {
+      const [major, minor] = prevVersion.split('.').map(Number);
+      
+      // 處理版本號增加（左鍵）
+      if (event.button !== 2) {
+        if (minor === 9) {
+          // 如果小版本是 9，則主版本加 1，小版本歸 0
+          const newVersion = `${major + 1}.0`;
+          localStorage.setItem('appVersion', newVersion);
+          return newVersion;
+        } else {
+          // 否則小版本加 1
+          const newVersion = `${major}.${minor + 1}`;
+          localStorage.setItem('appVersion', newVersion);
+          return newVersion;
+        }
+      } 
+      // 處理版本號減少（右鍵）
+      else {
+        if (minor === 0 && major > 1) {
+          // 如果小版本是 0 且主版本大於 1，則主版本減 1，小版本變 9
+          const newVersion = `${major - 1}.9`;
+          localStorage.setItem('appVersion', newVersion);
+          return newVersion;
+        } else if (minor === 0 && major === 1) {
+          // 如果是 1.0，則保持不變
+          return prevVersion;
+        } else {
+          // 否則小版本減 1
+          const newVersion = `${major}.${minor - 1}`;
+          localStorage.setItem('appVersion', newVersion);
+          return newVersion;
+        }
+      }
+    });
   };
 
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth="lg" role="main">
       <Box 
         sx={{ 
           minHeight: 'calc(100vh - 50px)',
@@ -73,9 +109,24 @@ function App() {
         </Paper>
 
         <AppBar position="static" color="default">
-          <Toolbar>
+          <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <Typography variant="h6" component="h1">
               高爾夫球賽管理系統
+            </Typography>
+            <Typography 
+              variant="subtitle2" 
+              sx={{ 
+                cursor: 'pointer',
+                color: 'rgba(0,0,0,0.6)',
+                '&:hover': {
+                  color: 'primary.main'
+                },
+                userSelect: 'none'
+              }}
+              onClick={handleVersionClick}
+              onContextMenu={handleVersionClick}
+            >
+              V{version}
             </Typography>
           </Toolbar>
           <Tabs
@@ -84,6 +135,8 @@ function App() {
             aria-label="管理功能選單"
             variant="scrollable"
             scrollButtons="auto"
+            indicatorColor="primary"
+            textColor="primary"
           >
             <Tab 
               label="賽事管理" 

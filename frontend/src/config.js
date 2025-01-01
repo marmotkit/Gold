@@ -1,7 +1,11 @@
 const config = {
-  API_BASE_URL: process.env.NODE_ENV === 'development' 
-    ? 'http://localhost:5000'
-    : 'https://gold-l1xp.onrender.com'
+    development: {
+        apiUrl: 'http://localhost:8000/api/v1'
+    },
+    production: {
+        apiUrl: process.env.REACT_APP_API_URL || 'https://your-production-api-url/api/v1'
+    }
 };
 
-export default config;
+const env = process.env.NODE_ENV || 'development';
+export const apiConfig = config[env];

@@ -13,16 +13,13 @@ import {
   TableHead,
   TableRow,
   Paper,
-  IconButton,
   Typography,
   Box,
   Snackbar,
   Alert,
   CircularProgress
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import config from '../config';
+import { apiConfig } from '../config';
 
 function TournamentManagement({ onTournamentSelect }) {
   const [tournaments, setTournaments] = useState([]);
@@ -40,32 +37,34 @@ function TournamentManagement({ onTournamentSelect }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetchTournaments();
+    loadTournaments();
   }, []);
 
-  const fetchTournaments = async () => {
+  const loadTournaments = async () => {
     try {
+      console.log('開始載入賽事列表...');
       setLoading(true);
-      const response = await fetch(`${config.API_BASE_URL}/api/v1/tournaments`, {
-        method: 'GET',
+
+      const response = await fetch(`${apiConfig.apiUrl}/tournaments`, {
         headers: {
-          'Accept': 'application/json',
           'Content-Type': 'application/json'
         }
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '載入賽事失敗');
+        const errorText = await response.text();
+        console.error('載入賽事列表失敗:', response.status, errorText);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('載入賽事列表成功:', data);
       setTournaments(data);
     } catch (error) {
-      console.error('Error fetching tournaments:', error);
+      console.error('Error loading tournaments:', error);
       setSnackbar({
         open: true,
-        message: error.message || '載入賽事失敗',
+        message: '載入賽事列表失敗',
         severity: 'error'
       });
     } finally {
@@ -73,48 +72,63 @@ function TournamentManagement({ onTournamentSelect }) {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     try {
-      setLoading(true);
-      const url = editingTournament
-        ? `${config.API_BASE_URL}/api/v1/tournaments/${editingTournament.id}`
-        : `${config.API_BASE_URL}/api/v1/tournaments`;
-      
-      const response = await fetch(url, {
+      const response = await fetch(`${apiConfig.apiUrl}/tournaments`, {
         method: editingTournament ? 'PUT' : 'POST',
         headers: {
-          'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          name: formData.name,
+          date: formData.date
+        }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '操作失敗');
+        const errorText = await response.text();
+        console.error('保存賽事失敗:', response.status, errorText);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
 
-      const data = await response.json();
-      setSnackbar({
-        open: true,
-        message: `賽事${editingTournament ? '更新' : '新增'}成功`,
-        severity: 'success'
+      const result = await response.json();
+      console.log('Tournament created:', result);
+
+      // 清空表單並關閉對話框
+      setFormData({
+        name: '',
+        date: ''
       });
-      
       setOpenDialog(false);
       setEditingTournament(null);
-      setFormData({ name: '', date: '' });
-      await fetchTournaments();
+
+      // 顯示成功訊息
+      setSnackbar({
+        open: true,
+        message: editingTournament ? '賽事更新成功' : '賽事建立成功',
+        severity: 'success',
+      });
+
+      // 更新賽事列表
+      setTournaments(prevTournaments => {
+        if (editingTournament) {
+          return prevTournaments.map(t => t.id === result.id ? result : t);
+        } else {
+          return [...prevTournaments, result];
+        }
+      });
+
+      // 重新載入賽事列表以確保數據同步
+      await loadTournaments();
+
     } catch (error) {
       console.error('Error saving tournament:', error);
       setSnackbar({
         open: true,
-        message: error.message || `賽事${editingTournament ? '更新' : '新增'}失敗`,
-        severity: 'error'
+        message: '保存賽事失敗',
+        severity: 'error',
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -128,36 +142,42 @@ function TournamentManagement({ onTournamentSelect }) {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('確定要刪除這個賽事嗎？')) {
-      return;
-    }
-
     try {
-      setLoading(true);
-      const response = await fetch(`${config.API_BASE_URL}/api/v1/tournaments/${id}`, {
+      console.log(`開始刪除賽事 ID：${id}`);
+      const response = await fetch(`${apiConfig.apiUrl}/tournaments/${id}`, {
         method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete tournament');
+        const errorText = await response.text();
+        console.error('刪除賽事失敗:', response.status, errorText);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
+
+      console.log('賽事刪除成功');
+      
+      // 更新本地狀態
+      setTournaments(prevTournaments => prevTournaments.filter(t => t.id !== id));
 
       setSnackbar({
         open: true,
         message: '賽事刪除成功',
         severity: 'success'
       });
-      
-      fetchTournaments();
+
+      // 重新載入賽事列表以確保數據同步
+      await loadTournaments();
+
     } catch (error) {
       console.error('Error deleting tournament:', error);
       setSnackbar({
         open: true,
-        message: '賽事刪除失敗',
+        message: '刪除賽事失敗',
         severity: 'error'
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -196,29 +216,48 @@ function TournamentManagement({ onTournamentSelect }) {
             {tournaments.map((tournament) => (
               <TableRow
                 key={tournament.id}
-                hover
+                sx={{ 
+                  '&:last-child td, &:last-child th': { border: 0 },
+                  cursor: 'pointer',
+                  '&:hover': { backgroundColor: '#f5f5f5' }
+                }}
                 onClick={() => onTournamentSelect(tournament)}
-                sx={{ cursor: 'pointer' }}
               >
-                <TableCell>{tournament.name}</TableCell>
-                <TableCell>{tournament.date}</TableCell>
+                <TableCell 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onTournamentSelect(tournament);
+                  }}
+                  sx={{ cursor: 'pointer' }}
+                >{tournament.name}</TableCell>
+                <TableCell 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onTournamentSelect(tournament);
+                  }}
+                  sx={{ cursor: 'pointer' }}
+                >{tournament.date}</TableCell>
                 <TableCell align="right">
-                  <IconButton
+                  <Button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleEdit(tournament);
                     }}
+                    color="primary"
+                    size="small"
                   >
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton
+                    編輯
+                  </Button>
+                  <Button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDelete(tournament.id);
                     }}
+                    color="error"
+                    size="small"
                   >
-                    <DeleteIcon />
-                  </IconButton>
+                    刪除
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -226,32 +265,39 @@ function TournamentManagement({ onTournamentSelect }) {
         </Table>
       </TableContainer>
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+      <Dialog 
+        open={openDialog} 
+        onClose={() => setOpenDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>{editingTournament ? '編輯賽事' : '新增賽事'}</DialogTitle>
         <form onSubmit={handleSubmit}>
           <DialogContent>
-            <TextField
-              autoFocus
-              margin="dense"
-              label="賽事名稱"
-              type="text"
-              fullWidth
-              required
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            />
-            <TextField
-              margin="dense"
-              label="日期"
-              type="date"
-              fullWidth
-              required
-              value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              InputLabelProps={{
-                shrink: true,
-              }}
-            />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <TextField
+                autoFocus
+                margin="dense"
+                label="賽事名稱"
+                type="text"
+                fullWidth
+                required
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
+              <TextField
+                margin="dense"
+                label="日期"
+                type="date"
+                fullWidth
+                required
+                value={formData.date}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                InputLabelProps={{
+                  shrink: true,
+                }}
+              />
+            </Box>
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpenDialog(false)}>取消</Button>
