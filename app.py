@@ -65,27 +65,27 @@ print(f"數據庫路徑: {app.config['SQLALCHEMY_DATABASE_URI']}")
 init_extensions(app)
 
 # 設置 CORS
-CORS(app, resources={
-    r"/api/*": {
-        "origins": ["http://localhost:3000", "https://gold-tawny.vercel.app"],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True,
-        "expose_headers": ["Content-Type", "Authorization"]
-    }
-})
+CORS(app)
 
-# 全局錯誤處理
-@app.errorhandler(Exception)
-def handle_error(error):
-    print(f"發生錯誤: {str(error)}")
-    response = jsonify({'error': str(error)})
-    if request.headers.get('Origin') in ["http://localhost:3000", "https://gold-tawny.vercel.app"]:
-        response.headers['Access-Control-Allow-Origin'] = request.headers.get('Origin')
-    response.headers['Access-Control-Allow-Credentials'] = 'true'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-    return response, 500
+# 設置全局 CORS headers
+@app.after_request
+def after_request(response):
+    origin = request.headers.get('Origin')
+    allowed_origins = ["http://localhost:3000", "https://gold-tawny.vercel.app"]
+    
+    if origin in allowed_origins:
+        response.headers.add('Access-Control-Allow-Origin', origin)
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        response.headers.add('Access-Control-Max-Age', '86400')
+    return response
+
+# 處理 OPTIONS 請求
+@app.route('/api/v1/tournaments', methods=['OPTIONS'])
+def handle_options():
+    response = jsonify({'status': 'ok'})
+    return response
 
 # 導入模型（在初始化之後）
 from models import Tournament, Participant
