@@ -65,21 +65,14 @@ print(f"數據庫路徑: {app.config['SQLALCHEMY_DATABASE_URI']}")
 init_extensions(app)
 
 # 設置 CORS
-CORS(app)
-
-# 設置全局 CORS headers
-@app.after_request
-def after_request(response):
-    origin = request.headers.get('Origin')
-    allowed_origins = ["http://localhost:3000", "https://gold-tawny.vercel.app"]
-    
-    if origin in allowed_origins:
-        response.headers.add('Access-Control-Allow-Origin', origin)
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-        response.headers.add('Access-Control-Max-Age', '86400')
-    return response
+CORS(app, resources={
+    r"/api/*": {
+        "origins": "*",
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Accept", "Authorization"],
+        "max_age": 3600
+    }
+})
 
 # 處理 OPTIONS 請求
 @app.route('/api/v1/tournaments', methods=['OPTIONS'])
@@ -155,6 +148,9 @@ def clean_text(text):
 def get_tournaments():
     try:
         print("收到獲取賽事列表請求")
+        print(f"請求來源: {request.headers.get('Origin')}")
+        print(f"請求方法: {request.method}")
+        
         tournaments = Tournament.query.all()
         result = []
         for tournament in tournaments:
@@ -164,7 +160,10 @@ def get_tournaments():
                 'date': tournament.date.strftime('%Y-%m-%d') if tournament.date else None
             })
         print(f"返回賽事列表: {result}")
-        return jsonify(result)
+        
+        response = jsonify(result)
+        return response
+        
     except Exception as e:
         print(f"獲取賽事列表時發生錯誤: {str(e)}")
         return jsonify({'error': str(e)}), 500
