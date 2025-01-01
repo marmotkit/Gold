@@ -18,7 +18,7 @@ class ProductionConfig(Config):
     DEBUG = False
     # 這裡的資料庫 URI 會在部署時設置
     SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///instance/golf.db')
-    FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://your-production-frontend-url')
+    FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://gold-tawny.vercel.app')
 
 # 環境配置映射
 config = {
