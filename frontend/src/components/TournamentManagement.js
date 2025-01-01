@@ -46,9 +46,12 @@ function TournamentManagement({ onTournamentSelect }) {
       setLoading(true);
 
       const response = await fetch(`${apiConfig.apiUrl}/tournaments`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        mode: 'cors',
+        credentials: 'include'
       });
 
       console.log('API 回應狀態:', response.status);
@@ -83,6 +86,8 @@ function TournamentManagement({ onTournamentSelect }) {
           name: formData.name,
           date: formData.date
         }),
+        mode: 'cors',
+        credentials: 'include'
       });
 
       console.log('API 回應狀態:', response.status);
@@ -146,7 +151,9 @@ function TournamentManagement({ onTournamentSelect }) {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        mode: 'cors',
+        credentials: 'include'
       });
 
       console.log('API 回應狀態:', response.status);
