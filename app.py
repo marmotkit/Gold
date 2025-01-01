@@ -64,20 +64,21 @@ print(f"數據庫路徑: {app.config['SQLALCHEMY_DATABASE_URI']}")
 # 初始化擴展
 init_extensions(app)
 
-# 設置 CORS
+# 配置 CORS
 CORS(app, resources={
     r"/api/*": {
         "origins": ["http://localhost:3000", "https://gold-tawny.vercel.app"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Accept", "Authorization"],
         "supports_credentials": True,
-        "max_age": 3600
+        "max_age": 3600,
+        "expose_headers": ["Content-Type", "Content-Length", "Content-Disposition"]
     }
 })
 
-# 設置全局 CORS 響應頭
+# 確保所有響應都包含 CORS 頭部
 @app.after_request
-def after_request(response):
+def add_cors_headers(response):
     origin = request.headers.get('Origin')
     allowed_origins = ["http://localhost:3000", "https://gold-tawny.vercel.app"]
     
@@ -87,14 +88,8 @@ def after_request(response):
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept, Authorization'
         response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['Access-Control-Max-Age'] = '3600'
-    
-    print('================== 響應結束 ==================')
-    print(f'響應狀態: {response.status}')
-    print(f'響應頭部:')
-    for name, value in response.headers.items():
-        print(f'  {name}: {value}')
-    print('============================================')
-    
+        response.headers['Access-Control-Expose-Headers'] = 'Content-Type, Content-Length, Content-Disposition'
+        
     return response
 
 # 處理 OPTIONS 請求
