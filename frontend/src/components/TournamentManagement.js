@@ -35,6 +35,12 @@ function TournamentManagement({ onTournamentSelect }) {
   });
   const [loading, setLoading] = useState(false);
 
+  const API_BASE_URL = process.env.NODE_ENV === 'production'
+    ? 'https://gold-1.onrender.com/api/v1'
+    : 'http://localhost:8000/api/v1';
+
+  const PROXY_URL = 'https://cors-anywhere.herokuapp.com/';
+
   useEffect(() => {
     loadTournaments();
   }, []);
@@ -44,16 +50,17 @@ function TournamentManagement({ onTournamentSelect }) {
       console.log('開始載入賽事列表...');
       setLoading(true);
 
-      const baseUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://gold-1.onrender.com/api/v1/tournaments')
-        : 'https://gold-1.onrender.com/api/v1/tournaments';
+      const url = process.env.NODE_ENV === 'production'
+        ? `${PROXY_URL}${API_BASE_URL}/tournaments`
+        : `${API_BASE_URL}/tournaments`;
 
-      console.log('請求 URL:', baseUrl);
-      const response = await fetch(baseUrl, {
+      console.log('請求 URL:', url);
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
         }
       });
 
@@ -82,15 +89,17 @@ function TournamentManagement({ onTournamentSelect }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {
-      const baseUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://gold-1.onrender.com/api/v1/tournaments')
-        : 'https://gold-1.onrender.com/api/v1/tournaments';
+      const url = process.env.NODE_ENV === 'production'
+        ? `${PROXY_URL}${API_BASE_URL}/tournaments`
+        : `${API_BASE_URL}/tournaments`;
 
-      const response = await fetch(baseUrl, {
+      console.log('請求 URL:', url);
+      const response = await fetch(url, {
         method: editingTournament ? 'PUT' : 'POST',
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
         },
         body: JSON.stringify({
           name: formData.name,
@@ -157,15 +166,17 @@ function TournamentManagement({ onTournamentSelect }) {
   const handleDelete = async (id) => {
     try {
       console.log(`開始刪除賽事 ID：${id}`);
-      const baseUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://gold-1.onrender.com/api/v1/tournaments/' + id)
-        : 'https://gold-1.onrender.com/api/v1/tournaments/' + id;
+      const url = process.env.NODE_ENV === 'production'
+        ? `${PROXY_URL}${API_BASE_URL}/tournaments/${id}`
+        : `${API_BASE_URL}/tournaments/${id}`;
 
-      const response = await fetch(baseUrl, {
+      console.log('請求 URL:', url);
+      const response = await fetch(url, {
         method: 'DELETE',
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
         }
       });
 
