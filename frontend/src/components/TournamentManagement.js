@@ -50,6 +50,24 @@ function TournamentManagement({ onTournamentSelect }) {
     let retryCount = 0;
     const maxRetries = 3;
     const retryDelay = 1000; // 1 second
+    const timeout = 5000; // 5 seconds
+
+    const fetchWithTimeout = async (url, options, timeout) => {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeout);
+
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal
+        });
+        clearTimeout(id);
+        return response;
+      } catch (error) {
+        clearTimeout(id);
+        throw error;
+      }
+    };
 
     const fetchWithRetry = async () => {
       try {
@@ -57,15 +75,19 @@ function TournamentManagement({ onTournamentSelect }) {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`${apiConfig.apiUrl}/tournaments`, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
+        const response = await fetchWithTimeout(
+          `${apiConfig.apiUrl}/tournaments`,
+          {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            mode: 'cors'
           },
-          credentials: 'include',
-          mode: 'cors'
-        });
+          timeout
+        );
 
         console.log('API 回應狀態:', response.status);
         console.log('API 回應頭部:', Object.fromEntries(response.headers.entries()));
@@ -82,6 +104,11 @@ function TournamentManagement({ onTournamentSelect }) {
         return true;
       } catch (error) {
         console.error(`載入賽事列表時發生錯誤 (重試次數: ${retryCount}):`, error);
+        
+        if (error.name === 'AbortError') {
+          console.error('請求超時');
+          throw new Error('請求超時，請稍後再試');
+        }
         
         if (retryCount < maxRetries) {
           retryCount++;
@@ -118,6 +145,24 @@ function TournamentManagement({ onTournamentSelect }) {
     let retryCount = 0;
     const maxRetries = 3;
     const retryDelay = 1000;
+    const timeout = 5000;
+
+    const fetchWithTimeout = async (url, options, timeout) => {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeout);
+
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal
+        });
+        clearTimeout(id);
+        return response;
+      } catch (error) {
+        clearTimeout(id);
+        throw error;
+      }
+    };
 
     const submitWithRetry = async () => {
       try {
@@ -125,19 +170,23 @@ function TournamentManagement({ onTournamentSelect }) {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`${apiConfig.apiUrl}/tournaments`, {
-          method: editingTournament ? 'PUT' : 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
+        const response = await fetchWithTimeout(
+          `${apiConfig.apiUrl}/tournaments`,
+          {
+            method: editingTournament ? 'PUT' : 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            mode: 'cors',
+            body: JSON.stringify({
+              name: formData.name,
+              date: formData.date
+            })
           },
-          credentials: 'include',
-          mode: 'cors',
-          body: JSON.stringify({
-            name: formData.name,
-            date: formData.date
-          })
-        });
+          timeout
+        );
 
         console.log('API 回應狀態:', response.status);
         console.log('API 回應頭部:', Object.fromEntries(response.headers.entries()));
@@ -165,6 +214,11 @@ function TournamentManagement({ onTournamentSelect }) {
         return true;
       } catch (error) {
         console.error(`保存賽事時發生錯誤 (重試次數: ${retryCount}):`, error);
+        
+        if (error.name === 'AbortError') {
+          console.error('請求超時');
+          throw new Error('請求超時，請稍後再試');
+        }
         
         if (retryCount < maxRetries) {
           retryCount++;
@@ -200,6 +254,24 @@ function TournamentManagement({ onTournamentSelect }) {
     let retryCount = 0;
     const maxRetries = 3;
     const retryDelay = 1000;
+    const timeout = 5000;
+
+    const fetchWithTimeout = async (url, options, timeout) => {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeout);
+
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal
+        });
+        clearTimeout(id);
+        return response;
+      } catch (error) {
+        clearTimeout(id);
+        throw error;
+      }
+    };
 
     const deleteWithRetry = async () => {
       try {
@@ -207,15 +279,19 @@ function TournamentManagement({ onTournamentSelect }) {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`${apiConfig.apiUrl}/tournaments/${id}`, {
-          method: 'DELETE',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
+        const response = await fetchWithTimeout(
+          `${apiConfig.apiUrl}/tournaments/${id}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            mode: 'cors'
           },
-          credentials: 'include',
-          mode: 'cors'
-        });
+          timeout
+        );
 
         console.log('API 回應狀態:', response.status);
         console.log('API 回應頭部:', Object.fromEntries(response.headers.entries()));
@@ -238,6 +314,11 @@ function TournamentManagement({ onTournamentSelect }) {
         return true;
       } catch (error) {
         console.error(`刪除賽事時發生錯誤 (重試次數: ${retryCount}):`, error);
+        
+        if (error.name === 'AbortError') {
+          console.error('請求超時');
+          throw new Error('請求超時，請稍後再試');
+        }
         
         if (retryCount < maxRetries) {
           retryCount++;
