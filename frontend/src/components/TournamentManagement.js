@@ -48,14 +48,17 @@ function TournamentManagement({ onTournamentSelect }) {
       const response = await fetch(`${apiConfig.apiUrl}/tournaments`, {
         method: 'GET',
         headers: {
+          'Accept': 'application/json',
           'Content-Type': 'application/json'
         },
         mode: 'cors',
-        credentials: 'include'
+        credentials: 'omit'
       });
 
       console.log('API 回應狀態:', response.status);
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API 錯誤回應:', errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -80,18 +83,21 @@ function TournamentManagement({ onTournamentSelect }) {
       const response = await fetch(`${apiConfig.apiUrl}/tournaments`, {
         method: editingTournament ? 'PUT' : 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           name: formData.name,
           date: formData.date
         }),
         mode: 'cors',
-        credentials: 'include'
+        credentials: 'omit'
       });
 
       console.log('API 回應狀態:', response.status);
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API 錯誤回應:', errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -150,14 +156,17 @@ function TournamentManagement({ onTournamentSelect }) {
       const response = await fetch(`${apiConfig.apiUrl}/tournaments/${id}`, {
         method: 'DELETE',
         headers: {
+          'Accept': 'application/json',
           'Content-Type': 'application/json'
         },
         mode: 'cors',
-        credentials: 'include'
+        credentials: 'omit'
       });
 
       console.log('API 回應狀態:', response.status);
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API 錯誤回應:', errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
