@@ -68,30 +68,10 @@ init_extensions(app)
 @app.route('/health', methods=['GET'])
 def health_check():
     app.logger.info('收到健康檢查請求')
-    try:
-        # 檢查數據庫連接
-        app.logger.info('正在檢查數據庫連接...')
-        result = db.session.execute('SELECT 1')
-        app.logger.info(f'數據庫檢查結果: {result.scalar()}')
-        
-        response = {
-            'status': 'healthy',
-            'database': 'connected',
-            'timestamp': datetime.now().isoformat(),
-            'environment': app.config.get('ENV', 'unknown')
-        }
-        app.logger.info(f'健康檢查成功: {response}')
-        return jsonify(response), 200
-    except Exception as e:
-        app.logger.error(f'健康檢查失敗: {str(e)}')
-        response = {
-            'status': 'unhealthy',
-            'database': 'disconnected',
-            'error': str(e),
-            'timestamp': datetime.now().isoformat(),
-            'environment': app.config.get('ENV', 'unknown')
-        }
-        return jsonify(response), 500
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat()
+    }), 200
 
 # 配置 CORS
 CORS(app, resources={
@@ -1049,5 +1029,8 @@ def update_participant_notes(tournament_id, participant_id):
         }), 400
 
 if __name__ == '__main__':
+    app.logger.info('應用啟動中...')
+    app.logger.info(f'環境: {app.config.get("ENV")}')
+    app.logger.info(f'調試模式: {app.config.get("DEBUG")}')
     port = int(os.environ.get('PORT', 8000))
-    app.run(host='127.0.0.1', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=True)

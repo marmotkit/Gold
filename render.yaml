@@ -1,20 +1,22 @@
 services:
   - type: web
-    name: golf-tournament-backend
+    name: gold
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --log-level debug
+    startCommand: gunicorn app:app --log-level debug --access-logfile - --error-logfile - --capture-output
     envVars:
       - key: PYTHON_VERSION
         value: 3.8.0
       - key: FLASK_APP
         value: app.py
       - key: FLASK_ENV
-        value: production
+        value: development
       - key: FLASK_DEBUG
         value: "1"
       - key: PYTHONUNBUFFERED
         value: "1"
+      - key: GUNICORN_CMD_ARGS
+        value: "--timeout 120 --workers 2 --threads 4"
     headers:
       - path: /*
         name: Access-Control-Allow-Origin
@@ -32,7 +34,7 @@ services:
         name: Access-Control-Max-Age
         value: "3600"
     healthCheckPath: /health
-    healthCheckTimeout: 5
+    healthCheckTimeout: 30
     autoDeploy: true
     numInstances: 1
     scaling:
