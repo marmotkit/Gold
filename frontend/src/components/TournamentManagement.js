@@ -212,73 +212,73 @@ function TournamentManagement({ onTournamentSelect }) {
         </Button>
       </Box>
 
-      {loading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
-          <CircularProgress />
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+          <CircularProgress aria-label="載入中" />
         </Box>
-      )}
-
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>賽事名稱</TableCell>
-              <TableCell>日期</TableCell>
-              <TableCell align="right">操作</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {tournaments.map((tournament) => (
-              <TableRow
-                key={tournament.id}
-                sx={{ 
-                  '&:last-child td, &:last-child th': { border: 0 },
-                  cursor: 'pointer',
-                  '&:hover': { backgroundColor: '#f5f5f5' }
-                }}
-                onClick={() => onTournamentSelect(tournament)}
-              >
-                <TableCell 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onTournamentSelect(tournament);
-                  }}
-                  sx={{ cursor: 'pointer' }}
-                >{tournament.name}</TableCell>
-                <TableCell 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onTournamentSelect(tournament);
-                  }}
-                  sx={{ cursor: 'pointer' }}
-                >{tournament.date}</TableCell>
-                <TableCell align="right">
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEdit(tournament);
-                    }}
-                    color="primary"
-                    size="small"
-                  >
-                    編輯
-                  </Button>
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(tournament.id);
-                    }}
-                    color="error"
-                    size="small"
-                  >
-                    刪除
-                  </Button>
-                </TableCell>
+      ) : (
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>賽事名稱</TableCell>
+                <TableCell>日期</TableCell>
+                <TableCell align="right">操作</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {tournaments.map((tournament) => (
+                <TableRow
+                  key={tournament.id}
+                  sx={{ 
+                    '&:last-child td, &:last-child th': { border: 0 },
+                    cursor: 'pointer',
+                    '&:hover': { backgroundColor: '#f5f5f5' }
+                  }}
+                  onClick={() => onTournamentSelect(tournament)}
+                >
+                  <TableCell 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTournamentSelect(tournament);
+                    }}
+                    sx={{ cursor: 'pointer' }}
+                  >{tournament.name}</TableCell>
+                  <TableCell 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTournamentSelect(tournament);
+                    }}
+                    sx={{ cursor: 'pointer' }}
+                  >{tournament.date}</TableCell>
+                  <TableCell align="right">
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(tournament);
+                      }}
+                      color="primary"
+                      size="small"
+                    >
+                      編輯
+                    </Button>
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(tournament.id);
+                      }}
+                      color="error"
+                      size="small"
+                    >
+                      刪除
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
       <Dialog 
         open={openDialog} 
