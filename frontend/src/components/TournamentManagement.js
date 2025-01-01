@@ -47,104 +47,225 @@ function TournamentManagement({ onTournamentSelect }) {
   }, []);
 
   const loadTournaments = async () => {
-    try {
-      console.log('開始載入賽事列表...');
-      setLoading(true);
-      setError(null);
+    let retryCount = 0;
+    const maxRetries = 3;
+    const retryDelay = 1000; // 1 second
 
-      const response = await fetch(`${apiConfig.apiUrl}/tournaments`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      });
+    const fetchWithRetry = async () => {
+      try {
+        console.log(`嘗試載入賽事列表... (重試次數: ${retryCount})`);
+        setLoading(true);
+        setError(null);
 
-      console.log('API 回應狀態:', response.status);
-      console.log('API 回應頭部:', Object.fromEntries(response.headers.entries()));
+        const response = await fetch(`${apiConfig.apiUrl}/tournaments`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          mode: 'cors'
+        });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API 錯誤回應:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        console.log('API 回應狀態:', response.status);
+        console.log('API 回應頭部:', Object.fromEntries(response.headers.entries()));
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('API 錯誤回應:', errorText);
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        }
+
+        const data = await response.json();
+        console.log('接收到的數據:', data);
+        setTournaments(data);
+        return true;
+      } catch (error) {
+        console.error(`載入賽事列表時發生錯誤 (重試次數: ${retryCount}):`, error);
+        
+        if (retryCount < maxRetries) {
+          retryCount++;
+          console.log(`等待 ${retryDelay}ms 後重試...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          return false;
+        }
+        
+        setError(error.message);
+        setSnackbar({
+          open: true,
+          message: '載入賽事列表失敗：' + error.message,
+          severity: 'error'
+        });
+        throw error;
+      } finally {
+        if (retryCount >= maxRetries) {
+          setLoading(false);
+        }
       }
+    };
 
-      const data = await response.json();
-      console.log('接收到的數據:', data);
-      setTournaments(data);
-    } catch (error) {
-      console.error('載入賽事列表時發生錯誤:', error);
-      setError(error.message);
-      setSnackbar({
-        open: true,
-        message: '載入賽事列表失敗：' + error.message,
-        severity: 'error'
-      });
-    } finally {
-      setLoading(false);
+    while (retryCount <= maxRetries) {
+      const success = await fetchWithRetry();
+      if (success) {
+        setLoading(false);
+        break;
+      }
     }
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    try {
-      setLoading(true);
-      setError(null);
+    let retryCount = 0;
+    const maxRetries = 3;
+    const retryDelay = 1000;
 
-      const response = await fetch(`${apiConfig.apiUrl}/tournaments`, {
-        method: editingTournament ? 'PUT' : 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          name: formData.name,
-          date: formData.date
-        })
-      });
+    const submitWithRetry = async () => {
+      try {
+        console.log(`嘗試保存賽事... (重試次數: ${retryCount})`);
+        setLoading(true);
+        setError(null);
 
-      console.log('API 回應狀態:', response.status);
-      console.log('API 回應頭部:', Object.fromEntries(response.headers.entries()));
+        const response = await fetch(`${apiConfig.apiUrl}/tournaments`, {
+          method: editingTournament ? 'PUT' : 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          mode: 'cors',
+          body: JSON.stringify({
+            name: formData.name,
+            date: formData.date
+          })
+        });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API 錯誤回應:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        console.log('API 回應狀態:', response.status);
+        console.log('API 回應頭部:', Object.fromEntries(response.headers.entries()));
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('API 錯誤回應:', errorText);
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        }
+
+        const data = await response.json();
+        console.log('接收到的數據:', data);
+
+        setFormData({ name: '', date: '' });
+        setOpenDialog(false);
+        setEditingTournament(null);
+
+        setSnackbar({
+          open: true,
+          message: '賽事保存成功',
+          severity: 'success'
+        });
+
+        await loadTournaments();
+        return true;
+      } catch (error) {
+        console.error(`保存賽事時發生錯誤 (重試次數: ${retryCount}):`, error);
+        
+        if (retryCount < maxRetries) {
+          retryCount++;
+          console.log(`等待 ${retryDelay}ms 後重試...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          return false;
+        }
+        
+        setError(error.message);
+        setSnackbar({
+          open: true,
+          message: '保存賽事失敗：' + error.message,
+          severity: 'error'
+        });
+        throw error;
+      } finally {
+        if (retryCount >= maxRetries) {
+          setLoading(false);
+        }
       }
+    };
 
-      const data = await response.json();
-      console.log('接收到的數據:', data);
+    while (retryCount <= maxRetries) {
+      const success = await submitWithRetry();
+      if (success) {
+        setLoading(false);
+        break;
+      }
+    }
+  };
 
-      // 清空表單並關閉對話框
-      setFormData({
-        name: '',
-        date: ''
-      });
-      setOpenDialog(false);
-      setEditingTournament(null);
+  const handleDelete = async (id) => {
+    let retryCount = 0;
+    const maxRetries = 3;
+    const retryDelay = 1000;
 
-      // 顯示成功消息
-      setSnackbar({
-        open: true,
-        message: '賽事保存成功',
-        severity: 'success'
-      });
+    const deleteWithRetry = async () => {
+      try {
+        console.log(`嘗試刪除賽事... (重試次數: ${retryCount})`);
+        setLoading(true);
+        setError(null);
 
-      // 重新載入賽事列表
-      await loadTournaments();
+        const response = await fetch(`${apiConfig.apiUrl}/tournaments/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          mode: 'cors'
+        });
 
-    } catch (error) {
-      console.error('保存賽事時發生錯誤:', error);
-      setError(error.message);
-      setSnackbar({
-        open: true,
-        message: '保存賽事失敗：' + error.message,
-        severity: 'error'
-      });
-    } finally {
-      setLoading(false);
+        console.log('API 回應狀態:', response.status);
+        console.log('API 回應頭部:', Object.fromEntries(response.headers.entries()));
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('API 錯誤回應:', errorText);
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        }
+
+        console.log('賽事刪除成功');
+        
+        setSnackbar({
+          open: true,
+          message: '賽事刪除成功',
+          severity: 'success'
+        });
+
+        await loadTournaments();
+        return true;
+      } catch (error) {
+        console.error(`刪除賽事時發生錯誤 (重試次數: ${retryCount}):`, error);
+        
+        if (retryCount < maxRetries) {
+          retryCount++;
+          console.log(`等待 ${retryDelay}ms 後重試...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          return false;
+        }
+        
+        setError(error.message);
+        setSnackbar({
+          open: true,
+          message: '刪除賽事失敗：' + error.message,
+          severity: 'error'
+        });
+        throw error;
+      } finally {
+        if (retryCount >= maxRetries) {
+          setLoading(false);
+        }
+      }
+    };
+
+    while (retryCount <= maxRetries) {
+      const success = await deleteWithRetry();
+      if (success) {
+        setLoading(false);
+        break;
+      }
     }
   };
 
@@ -155,55 +276,6 @@ function TournamentManagement({ onTournamentSelect }) {
       date: tournament.date
     });
     setOpenDialog(true);
-  };
-
-  const handleDelete = async (id) => {
-    try {
-      console.log(`開始刪除賽事 ID：${id}`);
-      setLoading(true);
-      setError(null);
-
-      const response = await fetch(`${apiConfig.apiUrl}/tournaments/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      });
-
-      console.log('API 回應狀態:', response.status);
-      console.log('API 回應頭部:', Object.fromEntries(response.headers.entries()));
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API 錯誤回應:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-      }
-
-      console.log('賽事刪除成功');
-      
-      // 顯示成功消息
-      setSnackbar({
-        open: true,
-        message: '賽事刪除成功',
-        severity: 'success'
-      });
-
-      // 重新載入賽事列表
-      await loadTournaments();
-
-    } catch (error) {
-      console.error('刪除賽事時發生錯誤:', error);
-      setError(error.message);
-      setSnackbar({
-        open: true,
-        message: '刪除賽事失敗：' + error.message,
-        severity: 'error'
-      });
-    } finally {
-      setLoading(false);
-    }
   };
 
   return (
