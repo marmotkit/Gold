@@ -19,7 +19,6 @@ import {
   Alert,
   CircularProgress
 } from '@mui/material';
-import { apiConfig } from '../config';
 
 function TournamentManagement({ onTournamentSelect }) {
   const [tournaments, setTournaments] = useState([]);
@@ -45,14 +44,17 @@ function TournamentManagement({ onTournamentSelect }) {
       console.log('開始載入賽事列表...');
       setLoading(true);
 
-      const response = await fetch(`${apiConfig.apiUrl}/tournaments`, {
+      const baseUrl = process.env.NODE_ENV === 'production' 
+        ? 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://gold-1.onrender.com/api/v1/tournaments')
+        : 'https://gold-1.onrender.com/api/v1/tournaments';
+
+      console.log('請求 URL:', baseUrl);
+      const response = await fetch(baseUrl, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
-        },
-        mode: 'cors',
-        credentials: 'omit'
+        }
       });
 
       console.log('API 回應狀態:', response.status);
@@ -80,7 +82,11 @@ function TournamentManagement({ onTournamentSelect }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {
-      const response = await fetch(`${apiConfig.apiUrl}/tournaments`, {
+      const baseUrl = process.env.NODE_ENV === 'production' 
+        ? 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://gold-1.onrender.com/api/v1/tournaments')
+        : 'https://gold-1.onrender.com/api/v1/tournaments';
+
+      const response = await fetch(baseUrl, {
         method: editingTournament ? 'PUT' : 'POST',
         headers: {
           'Accept': 'application/json',
@@ -89,9 +95,7 @@ function TournamentManagement({ onTournamentSelect }) {
         body: JSON.stringify({
           name: formData.name,
           date: formData.date
-        }),
-        mode: 'cors',
-        credentials: 'omit'
+        })
       });
 
       console.log('API 回應狀態:', response.status);
@@ -153,14 +157,16 @@ function TournamentManagement({ onTournamentSelect }) {
   const handleDelete = async (id) => {
     try {
       console.log(`開始刪除賽事 ID：${id}`);
-      const response = await fetch(`${apiConfig.apiUrl}/tournaments/${id}`, {
+      const baseUrl = process.env.NODE_ENV === 'production' 
+        ? 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://gold-1.onrender.com/api/v1/tournaments/' + id)
+        : 'https://gold-1.onrender.com/api/v1/tournaments/' + id;
+
+      const response = await fetch(baseUrl, {
         method: 'DELETE',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
-        },
-        mode: 'cors',
-        credentials: 'omit'
+        }
       });
 
       console.log('API 回應狀態:', response.status);
