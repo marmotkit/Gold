@@ -51,17 +51,16 @@ function TournamentManagement({ onTournamentSelect }) {
         }
       });
 
+      console.log('API 回應狀態:', response.status);
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('載入賽事列表失敗:', response.status, errorText);
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('載入賽事列表成功:', data);
+      console.log('接收到的數據:', data);
       setTournaments(data);
     } catch (error) {
-      console.error('Error loading tournaments:', error);
+      console.error('載入賽事列表時發生錯誤:', error);
       setSnackbar({
         open: true,
         message: '載入賽事列表失敗',
@@ -86,14 +85,13 @@ function TournamentManagement({ onTournamentSelect }) {
         }),
       });
 
+      console.log('API 回應狀態:', response.status);
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('保存賽事失敗:', response.status, errorText);
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const result = await response.json();
-      console.log('Tournament created:', result);
+      console.log('接收到的數據:', result);
 
       // 清空表單並關閉對話框
       setFormData({
@@ -123,7 +121,7 @@ function TournamentManagement({ onTournamentSelect }) {
       await loadTournaments();
 
     } catch (error) {
-      console.error('Error saving tournament:', error);
+      console.error('保存賽事時發生錯誤:', error);
       setSnackbar({
         open: true,
         message: '保存賽事失敗',
@@ -151,10 +149,9 @@ function TournamentManagement({ onTournamentSelect }) {
         }
       });
 
+      console.log('API 回應狀態:', response.status);
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('刪除賽事失敗:', response.status, errorText);
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       console.log('賽事刪除成功');
@@ -172,7 +169,7 @@ function TournamentManagement({ onTournamentSelect }) {
       await loadTournaments();
 
     } catch (error) {
-      console.error('Error deleting tournament:', error);
+      console.error('刪除賽事時發生錯誤:', error);
       setSnackbar({
         open: true,
         message: '刪除賽事失敗',
