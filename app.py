@@ -67,21 +67,31 @@ init_extensions(app)
 # 健康檢查端點
 @app.route('/health', methods=['GET'])
 def health_check():
+    app.logger.info('收到健康檢查請求')
     try:
         # 檢查數據庫連接
-        db.session.execute('SELECT 1')
-        return jsonify({
+        app.logger.info('正在檢查數據庫連接...')
+        result = db.session.execute('SELECT 1')
+        app.logger.info(f'數據庫檢查結果: {result.scalar()}')
+        
+        response = {
             'status': 'healthy',
             'database': 'connected',
-            'timestamp': datetime.now().isoformat()
-        }), 200
+            'timestamp': datetime.now().isoformat(),
+            'environment': app.config.get('ENV', 'unknown')
+        }
+        app.logger.info(f'健康檢查成功: {response}')
+        return jsonify(response), 200
     except Exception as e:
-        return jsonify({
+        app.logger.error(f'健康檢查失敗: {str(e)}')
+        response = {
             'status': 'unhealthy',
             'database': 'disconnected',
             'error': str(e),
-            'timestamp': datetime.now().isoformat()
-        }), 500
+            'timestamp': datetime.now().isoformat(),
+            'environment': app.config.get('ENV', 'unknown')
+        }
+        return jsonify(response), 500
 
 # 配置 CORS
 CORS(app, resources={
