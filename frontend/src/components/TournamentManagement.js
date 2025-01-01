@@ -34,6 +34,7 @@ function TournamentManagement({ onTournamentSelect }) {
     severity: 'success'
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const apiConfig = {
     apiUrl: process.env.NODE_ENV === 'production'
@@ -49,6 +50,7 @@ function TournamentManagement({ onTournamentSelect }) {
     try {
       console.log('開始載入賽事列表...');
       setLoading(true);
+      setError(null);
 
       const response = await fetch(`${apiConfig.apiUrl}/tournaments`, {
         method: 'GET',
@@ -60,10 +62,12 @@ function TournamentManagement({ onTournamentSelect }) {
       });
 
       console.log('API 回應狀態:', response.status);
+      console.log('API 回應頭部:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('API 錯誤回應:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
 
       const data = await response.json();
@@ -71,9 +75,10 @@ function TournamentManagement({ onTournamentSelect }) {
       setTournaments(data);
     } catch (error) {
       console.error('載入賽事列表時發生錯誤:', error);
+      setError(error.message);
       setSnackbar({
         open: true,
-        message: '載入賽事列表失敗',
+        message: '載入賽事列表失敗：' + error.message,
         severity: 'error'
       });
     } finally {
@@ -84,6 +89,9 @@ function TournamentManagement({ onTournamentSelect }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {
+      setLoading(true);
+      setError(null);
+
       const response = await fetch(`${apiConfig.apiUrl}/tournaments`, {
         method: editingTournament ? 'PUT' : 'POST',
         headers: {
@@ -98,14 +106,16 @@ function TournamentManagement({ onTournamentSelect }) {
       });
 
       console.log('API 回應狀態:', response.status);
+      console.log('API 回應頭部:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('API 錯誤回應:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
 
-      const result = await response.json();
-      console.log('接收到的數據:', result);
+      const data = await response.json();
+      console.log('接收到的數據:', data);
 
       // 清空表單並關閉對話框
       setFormData({
@@ -115,32 +125,26 @@ function TournamentManagement({ onTournamentSelect }) {
       setOpenDialog(false);
       setEditingTournament(null);
 
-      // 顯示成功訊息
+      // 顯示成功消息
       setSnackbar({
         open: true,
-        message: editingTournament ? '賽事更新成功' : '賽事建立成功',
-        severity: 'success',
+        message: '賽事保存成功',
+        severity: 'success'
       });
 
-      // 更新賽事列表
-      setTournaments(prevTournaments => {
-        if (editingTournament) {
-          return prevTournaments.map(t => t.id === result.id ? result : t);
-        } else {
-          return [...prevTournaments, result];
-        }
-      });
-
-      // 重新載入賽事列表以確保數據同步
+      // 重新載入賽事列表
       await loadTournaments();
 
     } catch (error) {
       console.error('保存賽事時發生錯誤:', error);
+      setError(error.message);
       setSnackbar({
         open: true,
-        message: '保存賽事失敗',
-        severity: 'error',
+        message: '保存賽事失敗：' + error.message,
+        severity: 'error'
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -156,6 +160,9 @@ function TournamentManagement({ onTournamentSelect }) {
   const handleDelete = async (id) => {
     try {
       console.log(`開始刪除賽事 ID：${id}`);
+      setLoading(true);
+      setError(null);
+
       const response = await fetch(`${apiConfig.apiUrl}/tournaments/${id}`, {
         method: 'DELETE',
         headers: {
@@ -166,33 +173,36 @@ function TournamentManagement({ onTournamentSelect }) {
       });
 
       console.log('API 回應狀態:', response.status);
+      console.log('API 回應頭部:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('API 錯誤回應:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
 
       console.log('賽事刪除成功');
       
-      // 更新本地狀態
-      setTournaments(prevTournaments => prevTournaments.filter(t => t.id !== id));
-
+      // 顯示成功消息
       setSnackbar({
         open: true,
         message: '賽事刪除成功',
         severity: 'success'
       });
 
-      // 重新載入賽事列表以確保數據同步
+      // 重新載入賽事列表
       await loadTournaments();
 
     } catch (error) {
       console.error('刪除賽事時發生錯誤:', error);
+      setError(error.message);
       setSnackbar({
         open: true,
-        message: '刪除賽事失敗',
+        message: '刪除賽事失敗：' + error.message,
         severity: 'error'
       });
+    } finally {
+      setLoading(false);
     }
   };
 
