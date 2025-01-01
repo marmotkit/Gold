@@ -70,9 +70,22 @@ CORS(app, resources={
         "origins": ["http://localhost:3000", "https://gold-tawny.vercel.app"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True
+        "supports_credentials": True,
+        "expose_headers": ["Content-Type", "Authorization"]
     }
 })
+
+# 全局錯誤處理
+@app.errorhandler(Exception)
+def handle_error(error):
+    print(f"發生錯誤: {str(error)}")
+    response = jsonify({'error': str(error)})
+    if request.headers.get('Origin') in ["http://localhost:3000", "https://gold-tawny.vercel.app"]:
+        response.headers['Access-Control-Allow-Origin'] = request.headers.get('Origin')
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    return response, 500
 
 # 導入模型（在初始化之後）
 from models import Tournament, Participant
@@ -80,16 +93,6 @@ from models import Tournament, Participant
 # 創建所有表
 with app.app_context():
     db.create_all()
-
-# 全局錯誤處理
-@app.errorhandler(Exception)
-def handle_error(error):
-    print(f"發生錯誤: {str(error)}")
-    response = jsonify({'error': str(error)})
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-    return response, 500
 
 # 全局函數：解析差點
 def parse_handicap(handicap_str):
@@ -150,24 +153,20 @@ def clean_text(text):
 # API 路由
 @app.route('/api/v1/tournaments', methods=['GET'])
 def get_tournaments():
-    """獲取所有賽事"""
     try:
-        print("開始獲取賽事列表...")
-        tournaments = Tournament.query.order_by(Tournament.date.desc()).all()
-        print(f"找到 {len(tournaments)} 個賽事")
+        print("收到獲取賽事列表請求")
+        tournaments = Tournament.query.all()
         result = []
-        for t in tournaments:
-            try:
-                result.append(t.to_dict())
-            except Exception as e:
-                print(f"轉換賽事 {t.id} 時發生錯誤：{str(e)}")
-                continue
-        print("賽事列表獲取成功")
+        for tournament in tournaments:
+            result.append({
+                'id': tournament.id,
+                'name': tournament.name,
+                'date': tournament.date.strftime('%Y-%m-%d') if tournament.date else None
+            })
+        print(f"返回賽事列表: {result}")
         return jsonify(result)
     except Exception as e:
-        print(f"獲取賽事列表時發生錯誤：{str(e)}")
-        import traceback
-        print(traceback.format_exc())
+        print(f"獲取賽事列表時發生錯誤: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # 建立新賽事
