@@ -64,6 +64,25 @@ print(f"數據庫路徑: {app.config['SQLALCHEMY_DATABASE_URI']}")
 # 初始化擴展
 init_extensions(app)
 
+# 健康檢查端點
+@app.route('/health', methods=['GET'])
+def health_check():
+    try:
+        # 檢查數據庫連接
+        db.session.execute('SELECT 1')
+        return jsonify({
+            'status': 'healthy',
+            'database': 'connected',
+            'timestamp': datetime.now().isoformat()
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'database': 'disconnected',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
 # 配置 CORS
 CORS(app, resources={
     r"/api/*": {
@@ -73,6 +92,11 @@ CORS(app, resources={
         "supports_credentials": True,
         "max_age": 3600,
         "expose_headers": ["Content-Type", "Content-Length", "Content-Disposition"]
+    },
+    r"/health": {
+        "origins": "*",
+        "methods": ["GET"],
+        "max_age": 3600
     }
 })
 
