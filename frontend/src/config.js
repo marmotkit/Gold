@@ -3,7 +3,7 @@ const config = {
         apiUrl: 'http://localhost:8000/api/v1'
     },
     production: {
-        apiUrl: process.env.REACT_APP_API_URL || 'https://your-production-api-url/api/v1'
+        apiUrl: process.env.REACT_APP_API_URL || 'https://gold-1.onrender.com/api/v1'
     }
 };
 
