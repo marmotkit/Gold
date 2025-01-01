@@ -87,6 +87,14 @@ def after_request(response):
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept, Authorization'
         response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['Access-Control-Max-Age'] = '3600'
+    
+    print('================== 響應結束 ==================')
+    print(f'響應狀態: {response.status}')
+    print(f'響應頭部:')
+    for name, value in response.headers.items():
+        print(f'  {name}: {value}')
+    print('============================================')
+    
     return response
 
 # 處理 OPTIONS 請求
@@ -95,78 +103,20 @@ def handle_options():
     response = jsonify({'status': 'ok'})
     return response
 
-# 導入模型（在初始化之後）
-from models import Tournament, Participant
-
-# 創建所有表
-with app.app_context():
-    db.create_all()
-
-# 全局函數：解析差點
-def parse_handicap(handicap_str):
-    try:
-        # 如果是數字0，直接返回0.0
-        if isinstance(handicap_str, (int, float)) and handicap_str == 0:
-            return 0.0
-            
-        # 如果是空值，返回999.0
-        if handicap_str is None or pd.isna(handicap_str) or str(handicap_str).strip() == '' or str(handicap_str).lower() == 'nan':
-            return 999.0
-
-        handicap_str = str(handicap_str).strip()
-        
-        # 如果是純數字，直接轉換
-        try:
-            return float(handicap_str)
-        except ValueError:
-            pass
-        
-        # 嘗試提取括號內的數字
-        match = re.search(r'\(([-+]?\d+\.?\d*)\)', handicap_str)
-        if match:
-            return float(match.group(1))
-        
-        # 嘗試提取任何數字
-        match = re.search(r'([-+]?\d+\.?\d*)', handicap_str)
-        if match:
-            return float(match.group(1))
-
-        return 999.0
-    except Exception as e:
-        print(f"解析差點時發生錯誤，輸入值：{handicap_str}，錯誤：{str(e)}")
-        return 999.0
-
-# 全局函數：清理文字
-def clean_text(text):
-    """清理文字，確保是有效的 Unicode 字符"""
-    if pd.isna(text):
-        return None
-    try:
-        # 轉換為字符串並移除前後空白
-        text = str(text).strip()
-        if text == '' or text.lower() == 'nan':
-            return None
-            
-        # 確保文字是有效的 Unicode，並處理任何無效的字符
-        text = text.encode('utf-8', errors='ignore').decode('utf-8')
-        
-        # 移除任何控制字符
-        text = ''.join(char for char in text if char.isprintable())
-        
-        return text
-    except Exception as e:
-        print(f"清理文字時發生錯誤：{str(e)}")
-        return None
-
-# API 路由
+# 獲取賽事列表
 @app.route('/api/v1/tournaments', methods=['GET'])
 def get_tournaments():
     try:
-        print("收到獲取賽事列表請求")
-        print(f"請求來源: {request.headers.get('Origin')}")
-        print(f"請求方法: {request.method}")
-        print(f"請求頭部: {dict(request.headers)}")
+        print('================== 請求開始 ==================')
+        print(f'請求路徑: {request.path}')
+        print(f'請求方法: {request.method}')
+        print(f'請求來源: {request.headers.get("Origin")}')
+        print(f'請求頭部:')
+        for name, value in request.headers.items():
+            print(f'  {name}: {value}')
+        print('============================================')
         
+        print("收到獲取賽事列表請求")
         tournaments = Tournament.query.all()
         result = []
         for tournament in tournaments:
@@ -188,37 +138,53 @@ def get_tournaments():
 @app.route('/api/v1/tournaments', methods=['POST'])
 def create_tournament():
     try:
-        print("開始建立新賽事...")
-        data = request.json
-        print(f"接收到的數據：{data}")
+        print('================== 請求開始 ==================')
+        print(f'請求路徑: {request.path}')
+        print(f'請求方法: {request.method}')
+        print(f'請求來源: {request.headers.get("Origin")}')
+        print(f'請求頭部:')
+        for name, value in request.headers.items():
+            print(f'  {name}: {value}')
+        print('============================================')
         
+        print("收到創建賽事請求")
+        print(f"請求數據: {request.json}")
+        
+        data = request.json
         tournament = Tournament(
             name=data['name'],
-            date=datetime.strptime(data['date'], '%Y-%m-%d').date(),
-            location='',  # 設置為空字符串
-            description=''  # 設置為空字符串
+            date=datetime.strptime(data['date'], '%Y-%m-%d').date() if data.get('date') else None
         )
-        print(f"建立賽事對象：{tournament}")
-        
         db.session.add(tournament)
         db.session.commit()
-        print(f"賽事保存成功，ID：{tournament.id}")
         
-        result = tournament.to_dict()
-        print(f"返回結果：{result}")
+        result = {
+            'id': tournament.id,
+            'name': tournament.name,
+            'date': tournament.date.strftime('%Y-%m-%d') if tournament.date else None
+        }
+        print(f"創建賽事成功: {result}")
+        
         return jsonify(result), 201
         
     except Exception as e:
+        print(f"創建賽事時發生錯誤: {str(e)}")
         db.session.rollback()
-        print(f"建立賽事時發生錯誤：{str(e)}")
-        import traceback
-        print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 # 獲取賽事的參賽者列表
 @app.route('/api/v1/tournaments/<int:tournament_id>/participants', methods=['GET'])
 def get_tournament_participants(tournament_id):
     try:
+        print('================== 請求開始 ==================')
+        print(f'請求路徑: {request.path}')
+        print(f'請求方法: {request.method}')
+        print(f'請求來源: {request.headers.get("Origin")}')
+        print(f'請求頭部:')
+        for name, value in request.headers.items():
+            print(f'  {name}: {value}')
+        print('============================================')
+        
         participants = Participant.query.filter_by(tournament_id=tournament_id).order_by(Participant.display_order).all()
         print(f"\n獲取賽事 {tournament_id} 的參賽者列表")
         print(f"總共找到 {len(participants)} 位參賽者")
@@ -241,6 +207,15 @@ def get_tournament_participants(tournament_id):
 @app.route('/api/v1/tournaments/<int:tournament_id>/participants/import', methods=['POST'])
 def import_participants(tournament_id):
     try:
+        print('================== 請求開始 ==================')
+        print(f'請求路徑: {request.path}')
+        print(f'請求方法: {request.method}')
+        print(f'請求來源: {request.headers.get("Origin")}')
+        print(f'請求頭部:')
+        for name, value in request.headers.items():
+            print(f'  {name}: {value}')
+        print('============================================')
+        
         if 'file' not in request.files:
             return jsonify({'error': '未找到檔案'}), 400
             
@@ -320,6 +295,15 @@ def import_participants(tournament_id):
 @app.route('/api/v1/tournaments/<int:tournament_id>/next-registration-number', methods=['GET'])
 def get_next_registration_number(tournament_id):
     try:
+        print('================== 請求開始 ==================')
+        print(f'請求路徑: {request.path}')
+        print(f'請求方法: {request.method}')
+        print(f'請求來源: {request.headers.get("Origin")}')
+        print(f'請求頭部:')
+        for name, value in request.headers.items():
+            print(f'  {name}: {value}')
+        print('============================================')
+        
         # 獲取當前賽事的所有參賽者
         participants = Participant.query.filter_by(tournament_id=tournament_id).all()
         
@@ -349,6 +333,15 @@ def get_next_registration_number(tournament_id):
 @app.route('/api/v1/tournaments/<int:tournament_id>', methods=['DELETE'])
 def delete_tournament(tournament_id):
     try:
+        print('================== 請求開始 ==================')
+        print(f'請求路徑: {request.path}')
+        print(f'請求方法: {request.method}')
+        print(f'請求來源: {request.headers.get("Origin")}')
+        print(f'請求頭部:')
+        for name, value in request.headers.items():
+            print(f'  {name}: {value}')
+        print('============================================')
+        
         print(f"開始刪除賽事 ID：{tournament_id}")
         tournament = Tournament.query.get_or_404(tournament_id)
         print(f"找到賽事：{tournament}")
@@ -378,6 +371,15 @@ def delete_tournament(tournament_id):
 @app.route('/api/v1/tournaments/<int:tournament_id>/participants/<int:participant_id>', methods=['DELETE'])
 def delete_participant(tournament_id, participant_id):
     try:
+        print('================== 請求開始 ==================')
+        print(f'請求路徑: {request.path}')
+        print(f'請求方法: {request.method}')
+        print(f'請求來源: {request.headers.get("Origin")}')
+        print(f'請求頭部:')
+        for name, value in request.headers.items():
+            print(f'  {name}: {value}')
+        print('============================================')
+        
         participant = Participant.query.get(participant_id)
         if not participant:
             return jsonify({'error': '找不到指定的參賽者'}), 404
@@ -401,6 +403,15 @@ def delete_participant(tournament_id, participant_id):
 @app.route('/api/v1/participants/<int:participant_id>/check-in', methods=['PUT'])
 def update_check_in_status(participant_id):
     try:
+        print('================== 請求開始 ==================')
+        print(f'請求路徑: {request.path}')
+        print(f'請求方法: {request.method}')
+        print(f'請求來源: {request.headers.get("Origin")}')
+        print(f'請求頭部:')
+        for name, value in request.headers.items():
+            print(f'  {name}: {value}')
+        print('============================================')
+        
         data = request.json
         check_in_status = data.get('check_in_status')
         check_in_time = data.get('check_in_time')
@@ -431,6 +442,15 @@ def update_check_in_status(participant_id):
 @app.route('/api/v1/tournaments/<int:tournament_id>/auto-group', methods=['POST'])
 def auto_group(tournament_id):
     try:
+        print('================== 請求開始 ==================')
+        print(f'請求路徑: {request.path}')
+        print(f'請求方法: {request.method}')
+        print(f'請求來源: {request.headers.get("Origin")}')
+        print(f'請求頭部:')
+        for name, value in request.headers.items():
+            print(f'  {name}: {value}')
+        print('============================================')
+        
         # 獲取賽事
         tournament = Tournament.query.get(tournament_id)
         if not tournament:
@@ -477,6 +497,15 @@ def auto_group(tournament_id):
 @app.route('/api/v1/tournaments/<int:tournament_id>/groups/save', methods=['PUT'])
 def save_groups(tournament_id):
     try:
+        print('================== 請求開始 ==================')
+        print(f'請求路徑: {request.path}')
+        print(f'請求方法: {request.method}')
+        print(f'請求來源: {request.headers.get("Origin")}')
+        print(f'請求頭部:')
+        for name, value in request.headers.items():
+            print(f'  {name}: {value}')
+        print('============================================')
+        
         data = request.json
         groups = data.get('groups', [])
         group_order = data.get('group_order', [])
@@ -529,6 +558,15 @@ def save_groups(tournament_id):
 @app.route('/api/v1/tournaments/<int:tournament_id>/groups/reorder', methods=['PUT'])
 def reorder_groups(tournament_id):
     try:
+        print('================== 請求開始 ==================')
+        print(f'請求路徑: {request.path}')
+        print(f'請求方法: {request.method}')
+        print(f'請求來源: {request.headers.get("Origin")}')
+        print(f'請求頭部:')
+        for name, value in request.headers.items():
+            print(f'  {name}: {value}')
+        print('============================================')
+        
         data = request.get_json()
         group1 = data.get('group1')
         group2 = data.get('group2')
@@ -567,6 +605,15 @@ def reorder_groups(tournament_id):
 @app.route('/api/v1/tournaments/<int:tournament_id>/participants/<int:participant_id>', methods=['PUT'])
 def update_participant_group(tournament_id, participant_id):
     try:
+        print('================== 請求開始 ==================')
+        print(f'請求路徑: {request.path}')
+        print(f'請求方法: {request.method}')
+        print(f'請求來源: {request.headers.get("Origin")}')
+        print(f'請求頭部:')
+        for name, value in request.headers.items():
+            print(f'  {name}: {value}')
+        print('============================================')
+        
         data = request.json
         print(f"接收到的數據：{data}")
         
@@ -605,6 +652,15 @@ def save_groups_api(tournament_id):
         return response
 
     try:
+        print('================== 請求開始 ==================')
+        print(f'請求路徑: {request.path}')
+        print(f'請求方法: {request.method}')
+        print(f'請求來源: {request.headers.get("Origin")}')
+        print(f'請求頭部:')
+        for name, value in request.headers.items():
+            print(f'  {name}: {value}')
+        print('============================================')
+        
         data = request.get_json()
         print(f"接收到的數據: {data}")
         
@@ -640,6 +696,15 @@ def save_groups_api(tournament_id):
 @app.route('/api/v1/tournaments/<int:tournament_id>/export_groups', methods=['GET'])
 def export_groups(tournament_id):
     try:
+        print('================== 請求開始 ==================')
+        print(f'請求路徑: {request.path}')
+        print(f'請求方法: {request.method}')
+        print(f'請求來源: {request.headers.get("Origin")}')
+        print(f'請求頭部:')
+        for name, value in request.headers.items():
+            print(f'  {name}: {value}')
+        print('============================================')
+        
         # 獲取賽事信息
         tournament = Tournament.query.get(tournament_id)
         if not tournament:
@@ -768,6 +833,15 @@ def export_groups(tournament_id):
 @app.route('/api/v1/tournaments/<int:tournament_id>/export_groups_diagram', methods=['GET'])
 def export_groups_diagram(tournament_id):
     try:
+        print('================== 請求開始 ==================')
+        print(f'請求路徑: {request.path}')
+        print(f'請求方法: {request.method}')
+        print(f'請求來源: {request.headers.get("Origin")}')
+        print(f'請求頭部:')
+        for name, value in request.headers.items():
+            print(f'  {name}: {value}')
+        print('============================================')
+        
         # 獲取賽事資訊
         tournament = Tournament.query.get_or_404(tournament_id)
         
@@ -914,6 +988,15 @@ def export_groups_diagram(tournament_id):
 @app.route('/api/v1/tournaments/<int:tournament_id>/participants/<int:participant_id>/notes', methods=['PUT'])
 def update_participant_notes(tournament_id, participant_id):
     try:
+        print('================== 請求開始 ==================')
+        print(f'請求路徑: {request.path}')
+        print(f'請求方法: {request.method}')
+        print(f'請求來源: {request.headers.get("Origin")}')
+        print(f'請求頭部:')
+        for name, value in request.headers.items():
+            print(f'  {name}: {value}')
+        print('============================================')
+        
         data = request.get_json()
         notes = data.get('notes', '')
 
