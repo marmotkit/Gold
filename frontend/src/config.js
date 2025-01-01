@@ -3,7 +3,7 @@ const config = {
         apiUrl: 'http://localhost:8000/api/v1'
     },
     production: {
-        apiUrl: 'https://gold-1.onrender.com/api/v1'
+        apiUrl: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://gold-1.onrender.com/api/v1')
     }
 };
 
