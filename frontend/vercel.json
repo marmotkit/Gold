@@ -1,14 +1,18 @@
 {
-  "buildCommand": "npm install && npm run build",
-  "outputDirectory": "build",
-  "devCommand": "npm run start",
-  "installCommand": "npm install",
-  "rewrites": [
+  "version": 2,
+  "builds": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "package.json",
+      "use": "@vercel/node"
     }
-  ]
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }
-'react-scripts' is not recognized as an internal or external command,
-operable program or batch file.
