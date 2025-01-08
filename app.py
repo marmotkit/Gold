@@ -267,7 +267,8 @@ def import_participants(tournament_id):
         print(df.head())
         
         # 檢查必要欄位
-        required_columns = ['姓名', '差點']
+        name_field = '中文姓名' if '中文姓名' in df.columns else '姓名'
+        required_columns = [name_field, '差點']
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             return jsonify({'error': f'缺少必要欄位：{", ".join(missing_columns)}'}), 400
@@ -322,7 +323,7 @@ def import_participants(tournament_id):
             # 建立參賽者
             participant = Participant(
                 tournament_id=tournament_id,
-                name=clean_text(str(row['姓名'])),
+               name=clean_text(str(row[name_field])),
                 gender=gender,
                 handicap=handicap,
                 member_number=str(row.get('會員編號', '')),

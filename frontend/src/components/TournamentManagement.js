@@ -73,7 +73,7 @@ function TournamentManagement({ onTournamentSelect }) {
         setError(null);
 
         const response = await fetchWithTimeout(
-          `${API_URL}tournaments`,
+          `${API_URL}/tournaments`,
           {
             method: 'GET',
             headers: {
@@ -168,7 +168,7 @@ function TournamentManagement({ onTournamentSelect }) {
         setError(null);
 
         const response = await fetchWithTimeout(
-          `${API_URL}tournaments`,
+          `${API_URL}/tournaments`,
           {
             method: editingTournament ? 'PUT' : 'POST',
             headers: {
@@ -277,7 +277,7 @@ function TournamentManagement({ onTournamentSelect }) {
         setError(null);
 
         const response = await fetchWithTimeout(
-          `${API_URL}tournaments/${id}`,
+          `${API_URL}/tournaments/${id}`,
           {
             method: 'DELETE',
             headers: {
