@@ -750,6 +750,10 @@ def save_groups_api(tournament_id):
         groups_data = data['groups']
         print(f"接收到的分組數據: {groups_data}")
         
+        # 確保沒有活動的交易
+        if db.session.is_active:
+            db.session.rollback()
+            
         # 更新所有參賽者的分組
         for group_info in groups_data:
             group_code = group_info['group_code']
@@ -764,6 +768,7 @@ def save_groups_api(tournament_id):
                     participant.display_order = display_order
                     print(f"更新參賽者 {participant_id} 到組別 {group_code}, 順序 {display_order}")
         
+        # 提交所有更改
         db.session.commit()
         response = jsonify({'message': '分組儲存成功'})
         return response
@@ -1064,6 +1069,62 @@ def export_groups_diagram(tournament_id):
         print(f"匯出分組圖時發生錯誤：{str(e)}")
         return jsonify({'error': str(e)}), 500
 
+# 儲存動態分組
+@app.route('/tournaments/<int:tournament_id>/groups', methods=['POST'])
+def save_dynamic_groups(tournament_id):
+    try:
+        # 檢查賽事是否存在
+        tournament = Tournament.query.get(tournament_id)
+        if not tournament:
+            return jsonify({"error": "找不到該賽事"}), 404
+
+        data = request.get_json()
+        if not data or 'groups' not in data:
+            return jsonify({"error": "無效的請求資料"}), 400
+
+        groups = data['groups']
+        
+        # 驗證分組資料格式
+        if not isinstance(groups, list):
+            return jsonify({"error": "分組資料格式錯誤"}), 400
+            
+        for group in groups:
+            if not isinstance(group, dict) or 'id' not in group or 'participants' not in group:
+                return jsonify({"error": "分組資料缺少必要欄位"}), 400
+            if not isinstance(group['participants'], list):
+                return jsonify({"error": "參賽者資料格式錯誤"}), 400
+        
+        # 確保沒有活動的交易
+        if db.session.is_active:
+            db.session.rollback()
+            
+        # 清除所有參賽者的分組
+        Participant.query.filter_by(tournament_id=tournament_id).update({
+            'group_code': None
+        })
+        
+        # 更新所有參賽者的分組
+        for group in groups:
+            group_code = group['id']
+            for participant_data in group['participants']:
+                if not isinstance(participant_data, dict) or 'id' not in participant_data:
+                    return jsonify({"error": "參賽者資料缺少必要欄位"}), 400
+                    
+                participant = Participant.query.get(participant_data['id'])
+                if participant and participant.tournament_id == tournament_id:
+                    participant.group_code = group_code
+                else:
+                    return jsonify({"error": "找不到指定的參賽者"}), 404
+
+        # 提交所有更改
+        db.session.commit()
+        return jsonify({"message": "分組已成功儲存"})
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"儲存動態分組時發生錯誤: {str(e)}")
+        return jsonify({"error": f"儲存分組時發生錯誤: {str(e)}"}), 500
+
 # 更新參賽者備註
 @app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>/notes', methods=['PUT'])
 def update_participant_notes(tournament_id, participant_id):
@@ -1102,6 +1163,47 @@ def update_participant_notes(tournament_id, participant_id):
 @app.route('/')
 def serve():
     return app.send_static_file('index.html')
+
+# 獲取分組資料
+@app.route('/tournaments/<int:tournament_id>/groups', methods=['GET'])
+def get_groups(tournament_id):
+    try:
+        # 檢查賽事是否存在
+        tournament = Tournament.query.get(tournament_id)
+        if not tournament:
+            return jsonify({"error": "Tournament not found"}), 404
+
+        # 獲取該賽事的所有參賽者
+        participants = Participant.query.filter_by(tournament_id=tournament_id).all()
+        
+        # 按照組別分組
+        groups = {}
+        for participant in participants:
+            if participant.group_code:  # 確保 group_code 存在
+                group_id = str(participant.group_code)  # 轉換為字串以確保唯一性
+                group_name = f"第 {participant.group_code} 組"
+                if group_name not in groups:
+                    groups[group_name] = {
+                        "id": group_id,  # 使用字串作為 id
+                        "name": group_name,
+                        "participants": []
+                    }
+                groups[group_name]["participants"].append({
+                    "id": participant.id,
+                    "name": participant.name,
+                    "gender": participant.gender,
+                    "registration_number": participant.registration_number,
+                    "handicap": participant.handicap
+                })
+
+        # 轉換為列表格式並排序
+        groups_list = sorted(list(groups.values()), key=lambda x: int(x["id"]))
+        
+        return jsonify(groups_list)
+
+    except Exception as e:
+        app.logger.error(f"Error getting groups: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.logger.info('應用啟動中...')

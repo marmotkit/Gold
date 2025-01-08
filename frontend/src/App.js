@@ -13,6 +13,7 @@ import ParticipantManagement from './components/ParticipantManagement';
 import GroupManagement from './components/GroupManagement';
 import CheckInManagement from './components/CheckInManagement';
 import TournamentManagement from './components/TournamentManagement';
+import DynamicGrouping from './components/DynamicGrouping';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -137,30 +138,13 @@ function App() {
             scrollButtons="auto"
             indicatorColor="primary"
             textColor="primary"
+            sx={{ borderBottom: 1, borderColor: 'divider' }}
           >
-            <Tab 
-              label="賽事管理" 
-              id="tab-0"
-              aria-controls="tabpanel-0"
-            />
-            <Tab 
-              label="參賽者管理"
-              id="tab-1"
-              aria-controls="tabpanel-1"
-              disabled={!selectedTournament}
-            />
-            <Tab 
-              label="分組管理"
-              id="tab-2"
-              aria-controls="tabpanel-2"
-              disabled={!selectedTournament}
-            />
-            <Tab 
-              label="報到管理"
-              id="tab-3"
-              aria-controls="tabpanel-3"
-              disabled={!selectedTournament}
-            />
+            <Tab label="賽事管理" id="tab-0" aria-controls="tabpanel-0" />
+            <Tab label="參賽者管理" id="tab-1" aria-controls="tabpanel-1" disabled={!selectedTournament} />
+            <Tab label="分組管理" id="tab-2" aria-controls="tabpanel-2" disabled={!selectedTournament} />
+            <Tab label="動態分組" id="tab-3" aria-controls="tabpanel-3" disabled={!selectedTournament} />
+            <Tab label="報到管理" id="tab-4" aria-controls="tabpanel-4" disabled={!selectedTournament} />
           </Tabs>
         </AppBar>
 
@@ -175,6 +159,9 @@ function App() {
             <GroupManagement tournament={selectedTournament} />
           </TabPanel>
           <TabPanel value={tabValue} index={3}>
+            <DynamicGrouping tournament={selectedTournament} />
+          </TabPanel>
+          <TabPanel value={tabValue} index={4}>
             <CheckInManagement tournament={selectedTournament} />
           </TabPanel>
         </Paper>
