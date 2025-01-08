@@ -1,38 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  Button,
-  TextField,
-  Grid,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Snackbar,
-  Alert,
-  IconButton,
-  Typography,
-  LinearProgress,
-  Box,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Chip
+import { 
+  Button, Typography, Box, IconButton, 
+  Dialog, DialogTitle, DialogContent, 
+  DialogActions, TextField, Alert,
+  DialogContentText, FormControl,
+  InputLabel, Select, MenuItem,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Snackbar, LinearProgress, Chip, Grid, Paper
 } from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
-import { apiConfig } from '../config';
+import config from '../config';
 import debounce from 'lodash.debounce';
+
+const API_URL = config.API_URL;
 
 // 加入格式化函數
 const formatHandicap = (value) => {
@@ -82,13 +65,15 @@ function ParticipantManagement({ tournament }) {
   });
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [participantToDelete, setParticipantToDelete] = useState(null);
+  const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   // 載入參賽者列表
   const loadParticipants = async () => {
     try {
       console.log('開始載入參賽者列表...');
       const response = await fetch(
-        `${apiConfig.apiUrl}/tournaments/${tournament.id}/participants`
+        `${API_URL}/tournaments/${tournament.id}/participants`
       );
       console.log('收到回應:', response);
       console.log('回應狀態:', response.status);
@@ -168,7 +153,7 @@ function ParticipantManagement({ tournament }) {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const apiUrl = `${apiConfig.apiUrl}/tournaments/${tournament.id}/participants/import`;
+      const apiUrl = `${API_URL}/tournaments/${tournament.id}/participants/import`;
       console.log('準備發送請求到:', apiUrl);
 
       const response = await fetch(apiUrl, {
@@ -259,7 +244,7 @@ function ParticipantManagement({ tournament }) {
 
     try {
       const response = await fetch(
-        `${apiConfig.apiUrl}/tournaments/${tournament.id}/participants/${participantToDelete.id}`,
+        `${API_URL}/tournaments/${tournament.id}/participants/${participantToDelete.id}`,
         {
           method: 'DELETE',
           headers: {
@@ -301,7 +286,7 @@ function ParticipantManagement({ tournament }) {
 
   const handleSubmit = async () => {
     try {
-      const url = `${apiConfig.apiUrl}/participants/${editingParticipant.id}`;
+      const url = `${API_URL}/participants/${editingParticipant.id}`;
       const response = await fetch(url, {
         method: 'PUT',
         headers: {
@@ -350,7 +335,7 @@ function ParticipantManagement({ tournament }) {
         participants: formattedParticipants
       });
 
-      const response = await fetch(`${apiConfig.apiUrl}/tournaments/${tournament.id}/participants`, {
+      const response = await fetch(`${API_URL}/tournaments/${tournament.id}/participants`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -402,7 +387,7 @@ function ParticipantManagement({ tournament }) {
     try {
       // 獲取下一個報名序號
       const response = await fetch(
-        `${apiConfig.apiUrl}/tournaments/${tournament.id}/next-registration-number`
+        `${API_URL}/tournaments/${tournament.id}/next-registration-number`
       );
       
       if (!response.ok) {
@@ -451,7 +436,7 @@ function ParticipantManagement({ tournament }) {
       // 設置新的報名序號
       const newRegNum = `A${String(maxRegNum + 1).padStart(2, '0')}`;
       
-      const response = await fetch(`${apiConfig.apiUrl}/tournaments/${tournament.id}/participants`, {
+      const response = await fetch(`${API_URL}/tournaments/${tournament.id}/participants`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -500,7 +485,7 @@ function ParticipantManagement({ tournament }) {
   const handleNotesChange = async (participantId, newNotes) => {
     try {
       const response = await fetch(
-        `${apiConfig.apiUrl}/tournaments/${tournament.id}/participants/${participantId}/notes`,
+        `${API_URL}/tournaments/${tournament.id}/participants/${participantId}/notes`,
         {
           method: 'PUT',
           headers: {
@@ -557,7 +542,7 @@ function ParticipantManagement({ tournament }) {
         return;
       }
 
-      const response = await fetch(`${apiConfig.apiUrl}/participants/${participant.id}/handicap`, {
+      const response = await fetch(`${API_URL}/participants/${participant.id}/handicap`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -620,7 +605,7 @@ function ParticipantManagement({ tournament }) {
       console.log('賽事ID:', tournament.id);
 
       // 修改 API 路徑，加入 /api/v1/
-      const apiUrl = `${apiConfig.apiUrl}/tournaments/${tournament.id}/participants/import`;
+      const apiUrl = `${API_URL}/tournaments/${tournament.id}/participants/import`;
       console.log('準備發送請求到:', apiUrl);
 
       const response = await fetch(apiUrl, {
@@ -666,7 +651,7 @@ function ParticipantManagement({ tournament }) {
   const handleOpenDialog = async () => {
     try {
       // 獲取下一個報名序號
-      const response = await fetch(`${apiConfig.apiUrl}/tournaments/${tournament.id}/next-registration-number`);
+      const response = await fetch(`${API_URL}/tournaments/${tournament.id}/next-registration-number`);
       if (!response.ok) {
         throw new Error('獲取報名序號失敗');
       }
@@ -694,6 +679,62 @@ function ParticipantManagement({ tournament }) {
     }
   };
 
+  // 處理編輯參賽者
+  const handleEdit = (participant) => {
+    setEditingParticipant({
+      ...participant,
+      handicap: participant.handicap || '',
+      gender: participant.gender || 'M',
+      notes: participant.notes || ''
+    });
+    setEditDialogOpen(true);
+  };
+
+  // 處理保存編輯
+  const handleSaveEdit = async () => {
+    try {
+      const response = await fetch(`${API_URL}/tournaments/${tournament.id}/participants/${editingParticipant.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editingParticipant)
+      });
+
+      if (!response.ok) {
+        throw new Error('更新參賽者資料失敗');
+      }
+
+      // 更新本地數據
+      setParticipants(participants.map(p => 
+        p.id === editingParticipant.id ? editingParticipant : p
+      ));
+      setSuccess('成功更新參賽者資料');
+      setEditDialogOpen(false);
+    } catch (error) {
+      setError(error.message);
+    }
+  };
+
+  // 處理刪除全部參賽者
+  const handleDeleteAll = async () => {
+    try {
+      const response = await fetch(`${API_URL}/tournaments/${tournament.id}/participants/delete-all`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        throw new Error('刪除參賽者失敗');
+      }
+
+      setParticipants([]);
+      setSuccess('成功刪除所有參賽者');
+      setDeleteAllDialogOpen(false);
+    } catch (error) {
+      setError(error.message);
+    }
+  };
+
   // 添加事件監聽器
   useEffect(() => {
     // 監聽備註更新事件
@@ -716,7 +757,7 @@ function ParticipantManagement({ tournament }) {
   // 添加重新載入函數
   const reloadParticipants = useCallback(async () => {
     try {
-      const response = await fetch(`${apiConfig.apiUrl}/tournaments/${tournament.id}/participants`);
+      const response = await fetch(`${API_URL}/tournaments/${tournament.id}/participants`);
       if (!response.ok) {
         throw new Error('無法獲取參賽者列表');
       }
@@ -753,7 +794,7 @@ function ParticipantManagement({ tournament }) {
     try {
       const newStatus = participant.check_in_status === 'checked_in' ? 'not_checked_in' : 'checked_in';
       const response = await fetch(
-        `${apiConfig.apiUrl}/participants/${participant.id}/check-in`,
+        `${API_URL}/participants/${participant.id}/check-in`,
         {
           method: 'PUT',
           headers: {
@@ -866,6 +907,20 @@ function ParticipantManagement({ tournament }) {
             >
               {participant.checked_in ? '已報到' : '報到'}
             </Button>
+            <IconButton
+              size="small"
+              onClick={() => handleEdit(participant)}
+              color="primary"
+            >
+              <EditIcon />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={() => handleDeleteClick(participant)}
+              color="error"
+            >
+              <DeleteIcon />
+            </IconButton>
           </Box>
         </Box>
       </React.Fragment>
@@ -914,6 +969,14 @@ function ParticipantManagement({ tournament }) {
               disabled={!tournament}
             >
               新增參賽者
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={() => setDeleteAllDialogOpen(true)}
+              startIcon={<DeleteIcon />}
+            >
+              刪除全部
             </Button>
             {selectedFile && (
               <Typography variant="body2" sx={{ mt: 1 }}>
@@ -991,6 +1054,13 @@ function ParticipantManagement({ tournament }) {
                 </TableCell>
                 <TableCell>
                   <IconButton
+                    onClick={() => handleEdit(participant)}
+                    color="primary"
+                    size="small"
+                  >
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton
                     onClick={() => handleDeleteClick(participant)}
                     color="error"
                     size="small"
@@ -1032,100 +1102,74 @@ function ParticipantManagement({ tournament }) {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-        <DialogTitle>新增參賽者</DialogTitle>
+      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)}>
+        <DialogTitle>編輯參賽者資料</DialogTitle>
         <DialogContent>
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="caption" color="textSecondary" sx={{ mb: 0.5, display: 'block' }}>
-              報名序號 (自動產生)
-            </Typography>
+          <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <TextField
-              fullWidth
-              value={newParticipant.registration_number || ''}
-              disabled
-              InputProps={{
-                readOnly: true,
-                sx: {
-                  bgcolor: 'action.hover',
-                  '& .MuiInputBase-input.Mui-disabled': {
-                    WebkitTextFillColor: 'rgba(0, 0, 0, 0.87)',
-                    color: 'rgba(0, 0, 0, 0.87)'
-                  }
-                }
-              }}
+              label="姓名"
+              value={editingParticipant?.name || ''}
+              onChange={(e) => setEditingParticipant({
+                ...editingParticipant,
+                name: e.target.value
+              })}
+            />
+            <TextField
+              label="差點"
+              type="number"
+              value={editingParticipant?.handicap || ''}
+              onChange={(e) => setEditingParticipant({
+                ...editingParticipant,
+                handicap: e.target.value
+              })}
+            />
+            <FormControl fullWidth>
+              <InputLabel>性別</InputLabel>
+              <Select
+                value={editingParticipant?.gender || 'M'}
+                onChange={(e) => setEditingParticipant({
+                  ...editingParticipant,
+                  gender: e.target.value
+                })}
+              >
+                <MenuItem value="M">男</MenuItem>
+                <MenuItem value="F">女</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              label="備註"
+              multiline
+              rows={4}
+              value={editingParticipant?.notes || ''}
+              onChange={(e) => setEditingParticipant({
+                ...editingParticipant,
+                notes: e.target.value
+              })}
             />
           </Box>
-          <TextField
-            margin="dense"
-            label="會員編號"
-            fullWidth
-            value={newParticipant.member_number}
-            onChange={(e) => setNewParticipant(prev => ({
-              ...prev,
-              member_number: e.target.value
-            }))}
-          />
-          <TextField
-            margin="dense"
-            label="姓名"
-            fullWidth
-            required
-            value={newParticipant.name}
-            onChange={(e) => setNewParticipant(prev => ({
-              ...prev,
-              name: e.target.value
-            }))}
-          />
-          <TextField
-            margin="dense"
-            label="差點"
-            fullWidth
-            value={newParticipant.handicap}
-            onChange={(e) => setNewParticipant(prev => ({
-              ...prev,
-              handicap: e.target.value
-            }))}
-          />
-          <FormControl fullWidth margin="dense">
-            <InputLabel>性別</InputLabel>
-            <Select
-              value={newParticipant.gender}
-              onChange={(e) => setNewParticipant(prev => ({
-                ...prev,
-                gender: e.target.value
-              }))}
-            >
-              <MenuItem value="M">男</MenuItem>
-              <MenuItem value="F">女</MenuItem>
-            </Select>
-          </FormControl>
-          <TextField
-            margin="dense"
-            label="預分組編號"
-            fullWidth
-            value={newParticipant.pre_group_code}
-            onChange={(e) => setNewParticipant(prev => ({
-              ...prev,
-              pre_group_code: e.target.value
-            }))}
-          />
-          <TextField
-            margin="dense"
-            label="備註"
-            fullWidth
-            multiline
-            rows={2}
-            value={newParticipant.notes}
-            onChange={(e) => setNewParticipant(prev => ({
-              ...prev,
-              notes: e.target.value
-            }))}
-          />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>取消</Button>
-          <Button onClick={handleAddParticipant} variant="contained">
-            新增
+          <Button onClick={() => setEditDialogOpen(false)}>取消</Button>
+          <Button onClick={handleSaveEdit} variant="contained">
+            保存
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={deleteAllDialogOpen}
+        onClose={() => setDeleteAllDialogOpen(false)}
+      >
+        <DialogTitle>確認刪除</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            確定要刪除所有參賽者嗎？此操作無法復原。
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteAllDialogOpen(false)}>取消</Button>
+          <Button onClick={handleDeleteAll} color="error" variant="contained">
+            確認刪除
           </Button>
         </DialogActions>
       </Dialog>

@@ -21,8 +21,10 @@ import {
   Chip
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { apiConfig } from '../config';
+import config from '../config';
 import { debounce } from 'lodash';
+
+const API_URL = config.API_URL;
 
 function CheckInManagement({ tournament }) {
   const [participants, setParticipants] = useState([]);
@@ -40,10 +42,13 @@ function CheckInManagement({ tournament }) {
   }, [tournament]);
 
   const fetchParticipants = async () => {
+    setLoading(true);
     try {
-      const response = await fetch(`${apiConfig.apiUrl}/tournaments/${tournament.id}/participants`);
+      const response = await fetch(`${API_URL}/tournaments/${tournament.id}/participants`, {
+        credentials: 'include'
+      });
       if (!response.ok) {
-        throw new Error('無法獲取參賽者列表');
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
       setParticipants(data);
@@ -54,6 +59,8 @@ function CheckInManagement({ tournament }) {
         message: '無法獲取參賽者列表',
         severity: 'error'
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -61,7 +68,7 @@ function CheckInManagement({ tournament }) {
   const handleCheckIn = async (participant) => {
     try {
       const response = await fetch(
-        `${apiConfig.apiUrl}/tournaments/${tournament.id}/participants/${participant.id}/check-in`,
+        `${API_URL}/tournaments/${tournament.id}/participants/${participant.id}/check-in`,
         {
           method: 'PUT',
           headers: {
@@ -112,7 +119,7 @@ function CheckInManagement({ tournament }) {
   const handleCancelCheckIn = async (participant) => {
     try {
       const response = await fetch(
-        `${apiConfig.apiUrl}/tournaments/${tournament.id}/participants/${participant.id}/check-in`,
+        `${API_URL}/tournaments/${tournament.id}/participants/${participant.id}/check-in`,
         {
           method: 'PUT',
           headers: {
@@ -162,7 +169,7 @@ function CheckInManagement({ tournament }) {
   const handleNotesChange = async (participantId, notes) => {
     try {
       const response = await fetch(
-        `${apiConfig.apiUrl}/tournaments/${tournament.id}/participants/${participantId}/notes`,
+        `${API_URL}/tournaments/${tournament.id}/participants/${participantId}/notes`,
         {
           method: 'PUT',
           headers: {
@@ -324,7 +331,7 @@ function CheckInManagement({ tournament }) {
   // 修改 reloadParticipants 函數
   const reloadParticipants = useCallback(async () => {
     try {
-      const response = await fetch(`${apiConfig.apiUrl}/tournaments/${tournament.id}/participants`);
+      const response = await fetch(`${API_URL}/tournaments/${tournament.id}/participants`);
       if (!response.ok) {
         throw new Error('無法獲取參賽者列表');
       }

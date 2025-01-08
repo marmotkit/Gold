@@ -45,11 +45,46 @@ from flask_cors import CORS
 from sqlalchemy import func
 from config import config
 from extensions import db, init_extensions
+from models import Tournament, Participant
 import re
 import tempfile
 
+def parse_handicap(value):
+    """解析差點值"""
+    if pd.isna(value):
+        return None
+    
+    try:
+        # 如果是數字，直接返回
+        if isinstance(value, (int, float)):
+            return float(value)
+        
+        # 如果是字串，清理並轉換
+        if isinstance(value, str):
+            # 移除所有空白字符
+            value = re.sub(r'\s+', '', value)
+            # 如果是空字串，返回 None
+            if not value:
+                return None
+            # 轉換為浮點數
+            return float(value)
+        
+        return None
+    except (ValueError, TypeError):
+        return None
+
+def clean_text(text):
+    """清理文字，移除不必要的空白和特殊字符"""
+    if not text:
+        return ''
+    # 移除前後空白
+    text = text.strip()
+    # 移除多餘的空白
+    text = re.sub(r'\s+', ' ', text)
+    return text
+
 # 創建應用程式
-app = Flask(__name__)
+app = Flask(__name__, static_folder='frontend/build', static_url_path='')
 
 # 獲取環境配置
 env = os.getenv('FLASK_ENV', 'development').strip()
@@ -75,45 +110,35 @@ def health_check():
 
 # 配置 CORS
 CORS(app, resources={
-    r"/api/*": {
-        "origins": ["http://localhost:3000", "https://gold-tawny.vercel.app"],
+    r"/*": {
+        "origins": ["http://localhost:3000", "http://localhost:8000", "http://172.20.2.9:8000", "https://gold-tawny.vercel.app"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Accept", "Authorization"],
         "supports_credentials": True,
         "max_age": 3600,
         "expose_headers": ["Content-Type", "Content-Length", "Content-Disposition"]
-    },
-    r"/health": {
-        "origins": "*",
-        "methods": ["GET"],
-        "max_age": 3600
     }
 })
 
-# 確保所有響應都包含 CORS 頭部
 @app.after_request
-def add_cors_headers(response):
-    origin = request.headers.get('Origin')
-    allowed_origins = ["http://localhost:3000", "https://gold-tawny.vercel.app"]
-    
-    if origin in allowed_origins:
-        response.headers['Access-Control-Allow-Origin'] = origin
+def after_request(response):
+    if request.method == 'OPTIONS':
+        response.status_code = 200
+        response.headers['Access-Control-Allow-Origin'] = request.headers.get('Origin', '*')
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept, Authorization'
         response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['Access-Control-Max-Age'] = '3600'
-        response.headers['Access-Control-Expose-Headers'] = 'Content-Type, Content-Length, Content-Disposition'
-        
     return response
 
 # 處理 OPTIONS 請求
-@app.route('/api/v1/tournaments', methods=['OPTIONS'])
+@app.route('/tournaments', methods=['OPTIONS'])
 def handle_options():
     response = jsonify({'status': 'ok'})
     return response
 
 # 獲取賽事列表
-@app.route('/api/v1/tournaments', methods=['GET'])
+@app.route('/tournaments', methods=['GET'])
 def get_tournaments():
     try:
         print('================== 請求開始 ==================')
@@ -144,7 +169,7 @@ def get_tournaments():
         return jsonify({'error': str(e)}), 500
 
 # 建立新賽事
-@app.route('/api/v1/tournaments', methods=['POST'])
+@app.route('/tournaments', methods=['POST'])
 def create_tournament():
     try:
         print('================== 請求開始 ==================')
@@ -182,7 +207,7 @@ def create_tournament():
         return jsonify({'error': str(e)}), 500
 
 # 獲取賽事的參賽者列表
-@app.route('/api/v1/tournaments/<int:tournament_id>/participants', methods=['GET'])
+@app.route('/tournaments/<int:tournament_id>/participants', methods=['GET'])
 def get_tournament_participants(tournament_id):
     try:
         print('================== 請求開始 ==================')
@@ -213,7 +238,7 @@ def get_tournament_participants(tournament_id):
         return jsonify({'error': str(e)}), 500
 
 # 匯入參賽者
-@app.route('/api/v1/tournaments/<int:tournament_id>/participants/import', methods=['POST'])
+@app.route('/tournaments/<int:tournament_id>/participants/import', methods=['POST'])
 def import_participants(tournament_id):
     try:
         print('================== 請求開始 ==================')
@@ -255,10 +280,27 @@ def import_participants(tournament_id):
             # 解析差點
             handicap = parse_handicap(row['差點'])
             
-            # 解析性別（如果有）
-            gender = row.get('性別', '男')
-            if pd.isna(gender) or str(gender).strip() == '':
-                gender = '男'
+            # 打印 Excel 的所有列
+            print(f"\n第 {index+1} 筆資料的所有欄位：")
+            for column in df.columns:
+                print(f"{column}: {row[column]}, 類型: {type(row[column])}")
+            
+            # 獲取性別值
+            raw_gender = row.get('性別', '')
+            print(f"原始性別值：{raw_gender}，類型：{type(raw_gender)}")
+            
+            # 轉換性別值
+            gender = None
+            if pd.notna(raw_gender):  # 檢查是否為 NaN
+                gender = str(raw_gender).strip().upper()  # 轉換為大寫
+                if gender == '男' or gender == 'M':
+                    gender = 'M'
+                elif gender == '女' or gender == 'F':
+                    gender = 'F'
+                else:
+                    gender = None
+                    
+            print(f"處理後的性別值：{gender}")
             
             # 直接處理預分組編號
             pre_group_code = None
@@ -301,7 +343,7 @@ def import_participants(tournament_id):
         return jsonify({'error': str(e)}), 500
 
 # 獲取下一個報名序號
-@app.route('/api/v1/tournaments/<int:tournament_id>/next-registration-number', methods=['GET'])
+@app.route('/tournaments/<int:tournament_id>/next-registration-number', methods=['GET'])
 def get_next_registration_number(tournament_id):
     try:
         print('================== 請求開始 ==================')
@@ -339,7 +381,7 @@ def get_next_registration_number(tournament_id):
         return jsonify({'error': str(e)}), 500
 
 # 刪除賽事
-@app.route('/api/v1/tournaments/<int:tournament_id>', methods=['DELETE'])
+@app.route('/tournaments/<int:tournament_id>', methods=['DELETE'])
 def delete_tournament(tournament_id):
     try:
         print('================== 請求開始 ==================')
@@ -377,7 +419,7 @@ def delete_tournament(tournament_id):
         return jsonify({'error': str(e)}), 500
 
 # 刪除參賽者
-@app.route('/api/v1/tournaments/<int:tournament_id>/participants/<int:participant_id>', methods=['DELETE'])
+@app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>', methods=['DELETE'])
 def delete_participant(tournament_id, participant_id):
     try:
         print('================== 請求開始 ==================')
@@ -408,9 +450,35 @@ def delete_participant(tournament_id, participant_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+# 刪除全部參賽者
+@app.route('/tournaments/<int:tournament_id>/participants/delete-all', methods=['DELETE'])
+def delete_all_participants(tournament_id):
+    try:
+        print('================== 請求開始 ==================')
+        print(f'請求路徑: {request.path}')
+        print(f'請求方法: {request.method}')
+        print(f'請求來源: {request.headers.get("Origin")}')
+        print('============================================')
+        
+        # 檢查賽事是否存在
+        tournament = Tournament.query.get(tournament_id)
+        if not tournament:
+            return jsonify({'error': '找不到指定的賽事'}), 404
+            
+        # 刪除該賽事的所有參賽者
+        Participant.query.filter_by(tournament_id=tournament_id).delete()
+        db.session.commit()
+        
+        return jsonify({'message': '成功刪除所有參賽者'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"刪除參賽者時發生錯誤：{str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 # 更新報到狀態
-@app.route('/api/v1/participants/<int:participant_id>/check-in', methods=['PUT'])
-def update_check_in_status(participant_id):
+@app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>/check-in', methods=['PUT'])
+def update_check_in_status(tournament_id, participant_id):
     try:
         print('================== 請求開始 ==================')
         print(f'請求路徑: {request.path}')
@@ -428,6 +496,9 @@ def update_check_in_status(participant_id):
         participant = Participant.query.get(participant_id)
         if not participant:
             return jsonify({'error': '找不到指定的參賽者'}), 404
+            
+        if participant.tournament_id != tournament_id:
+            return jsonify({'error': '參賽者不屬於指定的賽事'}), 400
             
         participant.check_in_status = check_in_status
         if check_in_time:
@@ -448,7 +519,7 @@ def update_check_in_status(participant_id):
         return jsonify({'error': str(e)}), 500
 
 # 自動分組
-@app.route('/api/v1/tournaments/<int:tournament_id>/auto-group', methods=['POST'])
+@app.route('/tournaments/<int:tournament_id>/auto-group', methods=['POST'])
 def auto_group(tournament_id):
     try:
         print('================== 請求開始 ==================')
@@ -503,7 +574,7 @@ def auto_group(tournament_id):
         return jsonify({'error': '自動分組失敗：' + str(e)}), 500
 
 # 儲存分組
-@app.route('/api/v1/tournaments/<int:tournament_id>/groups/save', methods=['PUT'])
+@app.route('/tournaments/<int:tournament_id>/groups/save', methods=['PUT'])
 def save_groups(tournament_id):
     try:
         print('================== 請求開始 ==================')
@@ -564,7 +635,7 @@ def save_groups(tournament_id):
         return jsonify({'error': '儲存分組失敗：' + str(e)}), 500
 
 # 更新分組順序
-@app.route('/api/v1/tournaments/<int:tournament_id>/groups/reorder', methods=['PUT'])
+@app.route('/tournaments/<int:tournament_id>/groups/reorder', methods=['PUT'])
 def reorder_groups(tournament_id):
     try:
         print('================== 請求開始 ==================')
@@ -611,7 +682,7 @@ def reorder_groups(tournament_id):
         return jsonify({'error': '更新組別順序失敗：' + str(e)}), 500
 
 # 更新參賽者組別
-@app.route('/api/v1/tournaments/<int:tournament_id>/participants/<int:participant_id>', methods=['PUT'])
+@app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>', methods=['PUT'])
 def update_participant_group(tournament_id, participant_id):
     try:
         print('================== 請求開始 ==================')
@@ -650,7 +721,7 @@ def update_participant_group(tournament_id, participant_id):
         print('更新參賽者組別錯誤:', str(e))
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/v1/tournaments/<int:tournament_id>/save_groups', methods=['POST', 'OPTIONS'])
+@app.route('/tournaments/<int:tournament_id>/save_groups', methods=['POST', 'OPTIONS'])
 def save_groups_api(tournament_id):
     # 處理 OPTIONS 請求
     if request.method == 'OPTIONS':
@@ -702,7 +773,7 @@ def save_groups_api(tournament_id):
         print(f"保存分組時發生錯誤：{str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/v1/tournaments/<int:tournament_id>/export_groups', methods=['GET'])
+@app.route('/tournaments/<int:tournament_id>/export_groups', methods=['GET'])
 def export_groups(tournament_id):
     try:
         print('================== 請求開始 ==================')
@@ -839,7 +910,7 @@ def export_groups(tournament_id):
         return jsonify({'error': str(e)}), 500
 
 # 匯出分組圖
-@app.route('/api/v1/tournaments/<int:tournament_id>/export_groups_diagram', methods=['GET'])
+@app.route('/tournaments/<int:tournament_id>/export_groups_diagram', methods=['GET'])
 def export_groups_diagram(tournament_id):
     try:
         print('================== 請求開始 ==================')
@@ -994,7 +1065,7 @@ def export_groups_diagram(tournament_id):
         return jsonify({'error': str(e)}), 500
 
 # 更新參賽者備註
-@app.route('/api/v1/tournaments/<int:tournament_id>/participants/<int:participant_id>/notes', methods=['PUT'])
+@app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>/notes', methods=['PUT'])
 def update_participant_notes(tournament_id, participant_id):
     try:
         print('================== 請求開始 ==================')
@@ -1027,6 +1098,10 @@ def update_participant_notes(tournament_id, participant_id):
             'message': f'備註更新失敗: {str(e)}',
             'error': True
         }), 400
+
+@app.route('/')
+def serve():
+    return app.send_static_file('index.html')
 
 if __name__ == '__main__':
     app.logger.info('應用啟動中...')

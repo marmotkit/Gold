@@ -27,14 +27,16 @@ import WarningIcon from '@mui/icons-material/Warning';
 import DragHandleIcon from '@mui/icons-material/DragHandle';
 import AddIcon from '@mui/icons-material/Add';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
-import { apiConfig } from '../config';
+import config from '../config';
 
-function ParticipantCard({ participant, onDelete, onDragStart, onDragEnd, isDragging, isOverflow }) {
+const API_URL = config.API_URL;
+
+function ParticipantCard({ participant, onDelete, onDragStart, onDragEnd, isDragging, isOverflow, onCheckIn }) {
   return (
     <Box 
       sx={{ 
         display: 'flex', 
-        alignItems: 'center', 
+        flexDirection: 'column',
         p: 1,
         opacity: isDragging ? 0.5 : 1,
         cursor: 'move',
@@ -43,69 +45,80 @@ function ParticipantCard({ participant, onDelete, onDragStart, onDragEnd, isDrag
         },
         ...(isOverflow && {
           backgroundColor: '#fff3e0',
-          border: '1px solid #ffe0b2'
-        })
+          border: '1px solid #ffe0b2',
+          borderRadius: '4px'
+        }),
+        height: '100%'
       }}
       draggable={true}
       onDragStart={(e) => onDragStart(e, participant)}
       onDragEnd={onDragEnd}
     >
-      <IconButton size="small" sx={{ mr: 1, cursor: 'move' }}>
-        <DragHandleIcon />
-      </IconButton>
-      <Typography>
-        {participant.name}
-      </Typography>
-      <Box sx={{ display: 'flex', alignItems: 'center', ml: 'auto', mr: 1 }}>
-        {participant.check_in_status === 'checked_in' && (
-          <Chip 
-            label="已報到" 
-            size="small" 
-            color="success" 
-            sx={{ mr: 1 }}
-          />
-        )}
-        <Box
-          component="span"
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            color: participant.gender === 'F' ? '#f06292' : '#2196f3',
-            mx: 1
-          }}
-        >
-          {participant.gender === 'F' ? (
-            <FemaleIcon fontSize="small" />
-          ) : (
-            <MaleIcon fontSize="small" />
-          )}
-        </Box>
-        <Typography
-          component="span"
-          sx={{
-            px: 1,
-            py: 0.25,
-            borderRadius: '12px',
-            bgcolor: 'background.paper',
-            fontSize: '0.875rem',
-            color: 'text.secondary'
-          }}
-        >
-          差點: {participant.handicap}
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+        <IconButton size="small" sx={{ mr: 1, cursor: 'move' }}>
+          <DragHandleIcon />
+        </IconButton>
+        <Typography sx={{ 
+          flexGrow: 1,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }}>
+          {participant.name}
         </Typography>
+        <IconButton
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          sx={{
+            color: 'error.light',
+            '&:hover': {
+              color: 'error.main'
+            }
+          }}
+        >
+          <DeleteIcon fontSize="small" />
+        </IconButton>
       </Box>
-      <IconButton
-        size="small"
-        onClick={onDelete}
-        sx={{
-          color: 'error.light',
-          '&:hover': {
-            color: 'error.main'
-          }
-        }}
-      >
-        <DeleteIcon fontSize="small" />
-      </IconButton>
+      
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        mt: 'auto'
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          {participant.gender === 'F' ? (
+            <FemaleIcon fontSize="small" sx={{ color: '#f06292' }} />
+          ) : (
+            <MaleIcon fontSize="small" sx={{ color: '#2196f3' }} />
+          )}
+          <Typography
+            component="span"
+            sx={{
+              ml: 1,
+              fontSize: '0.875rem',
+              color: 'text.secondary'
+            }}
+          >
+            差點: {participant.handicap}
+          </Typography>
+        </Box>
+        <Button
+          variant={participant.check_in_status === 'checked_in' ? "contained" : "outlined"}
+          color={participant.check_in_status === 'checked_in' ? "success" : "primary"}
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCheckIn(participant);
+          }}
+          sx={{ minWidth: '70px' }}
+        >
+          {participant.check_in_status === 'checked_in' ? '已報到' : '報到'}
+        </Button>
+      </Box>
     </Box>
   );
 }
@@ -126,7 +139,7 @@ function GroupManagement({ tournament, onSave }) {
     try {
       setIsLoading(true);
       const response = await fetch(
-        `${apiConfig.apiUrl}/tournaments/${tournament.id}/participants`
+        `${API_URL}/tournaments/${tournament.id}/participants`
       );
 
       if (!response.ok) {
@@ -280,7 +293,7 @@ function GroupManagement({ tournament, onSave }) {
 
       // 發送儲存請求
       const response = await fetch(
-        `${apiConfig.apiUrl}/tournaments/${tournament.id}/save_groups`,
+        `${API_URL}/tournaments/${tournament.id}/save_groups`,
         {
           method: 'POST',
           headers: {
@@ -299,7 +312,7 @@ function GroupManagement({ tournament, onSave }) {
       }
 
       // 重新載入參賽者列表
-      const participantsResponse = await fetch(`${apiConfig.apiUrl}/tournaments/${tournament.id}/participants`);
+      const participantsResponse = await fetch(`${API_URL}/tournaments/${tournament.id}/participants`);
       if (!participantsResponse.ok) {
         throw new Error('無法重新載入參賽者列表');
       }
@@ -357,7 +370,7 @@ function GroupManagement({ tournament, onSave }) {
       setIsLoading(true);
 
       // 下載 Excel 檔案
-      window.location.href = `${apiConfig.apiUrl}/tournaments/${tournament.id}/export_groups`;
+      window.location.href = `${API_URL}/tournaments/${tournament.id}/export_groups`;
       
       setSnackbar({
         open: true,
@@ -380,7 +393,7 @@ function GroupManagement({ tournament, onSave }) {
   // 處理匯出分組圖
   const handleExportGroupsDiagram = async () => {
     try {
-      window.location.href = `${apiConfig.apiUrl}/tournaments/${tournament.id}/export_groups_diagram`;
+      window.location.href = `${API_URL}/tournaments/${tournament.id}/export_groups_diagram`;
       
       setSnackbar({
         open: true,
@@ -435,7 +448,7 @@ function GroupManagement({ tournament, onSave }) {
 
       // 更新後端
       const response = await fetch(
-        `${apiConfig.apiUrl}/tournaments/${tournament.id}/participants/${participantId}/group`,
+        `${API_URL}/tournaments/${tournament.id}/participants/${participantId}/group`,
         {
           method: 'PUT',
           headers: {
@@ -468,6 +481,67 @@ function GroupManagement({ tournament, onSave }) {
     }
   }, [tournament]);
 
+  // 處理報到
+  const handleCheckIn = async (participant) => {
+    try {
+      const response = await fetch(
+        `${API_URL}/tournaments/${tournament.id}/participants/${participant.id}/check-in`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            check_in_status: participant.check_in_status === 'checked_in' ? 'not_checked_in' : 'checked_in',
+            check_in_time: participant.check_in_status === 'checked_in' ? null : new Date().toISOString()
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('報到失敗');
+      }
+
+      const data = await response.json();
+      
+      // 更新本地狀態
+      const updateParticipant = (participants) => {
+        return participants.map(p =>
+          p.id === participant.id
+            ? {
+                ...p,
+                check_in_status: data.participant.check_in_status,
+                check_in_time: data.participant.check_in_time
+              }
+            : p
+        );
+      };
+
+      setGroups(prevGroups => {
+        const newGroups = {};
+        Object.entries(prevGroups).forEach(([groupCode, participants]) => {
+          newGroups[groupCode] = updateParticipant(participants);
+        });
+        return newGroups;
+      });
+
+      setUngroupedParticipants(prev => updateParticipant(prev));
+
+      setSnackbar({
+        open: true,
+        message: data.participant.check_in_status === 'checked_in' ? '報到成功' : '取消報到成功',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('報到錯誤:', error);
+      setSnackbar({
+        open: true,
+        message: error.message || '報到操作失敗',
+        severity: 'error'
+      });
+    }
+  };
+
   // 新增分組功能
   const handleAddGroup = () => {
     setGroups(prevGroups => {
@@ -496,7 +570,7 @@ function GroupManagement({ tournament, onSave }) {
 
       // 發送自動分組請求
       const response = await fetch(
-        `${apiConfig.apiUrl}/tournaments/${tournament.id}/auto-group`,
+        `${API_URL}/tournaments/${tournament.id}/auto-group`,
         {
           method: 'POST',
           headers: {
@@ -601,7 +675,7 @@ function GroupManagement({ tournament, onSave }) {
 
       // 處理跨組拖動
       const response = await fetch(
-        `${apiConfig.apiUrl}/tournaments/${tournament.id}/participants/${draggedParticipant.id}`,
+        `${API_URL}/tournaments/${tournament.id}/participants/${draggedParticipant.id}`,
         {
           method: 'PUT',
           headers: {
@@ -660,7 +734,7 @@ function GroupManagement({ tournament, onSave }) {
     try {
       // 發送更新請求到後端
       const response = await fetch(
-        `${apiConfig.apiUrl}/tournaments/${tournament.id}/groups/${groupCode}/reorder`,
+        `${API_URL}/tournaments/${tournament.id}/groups/${groupCode}/reorder`,
         {
           method: 'PUT',
           headers: {
@@ -707,7 +781,7 @@ function GroupManagement({ tournament, onSave }) {
 
       // 更新後端
       const response = await fetch(
-        `${apiConfig.apiUrl}/tournaments/${tournament.id}/groups/reorder`,
+        `${API_URL}/tournaments/${tournament.id}/groups/reorder`,
         {
           method: 'PUT',
           headers: {
@@ -755,7 +829,7 @@ function GroupManagement({ tournament, onSave }) {
       console.log(`更新參賽者 ${participantId} 到組別 ${newGroupCode}`);
       
       const response = await fetch(
-        `${apiConfig.apiUrl}/tournaments/${tournament.id}/participants/${participantId}/group`,
+        `${API_URL}/tournaments/${tournament.id}/participants/${participantId}/group`,
         {
           method: 'PUT',
           headers: {
@@ -825,14 +899,18 @@ function GroupManagement({ tournament, onSave }) {
             backgroundColor: isDropTarget 
               ? 'rgba(33, 150, 243, 0.08)'
               : 'background.paper',
-            transition: 'all 0.2s ease'
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            minHeight: '300px'
           }}
           onDragOver={(e) => handleDragOver(e, groupCode)}
           onDragLeave={handleDragLeave}
           onDrop={(e) => handleDrop(e, groupCode)}
         >
           <Box sx={{ display: 'flex', flexDirection: 'column', mb: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
               <Typography 
                 variant="h6" 
                 component="div" 
@@ -889,169 +967,55 @@ function GroupManagement({ tournament, onSave }) {
           </Box>
 
           {/* 主要參賽者區域 */}
-          <List disablePadding>
+          <Box sx={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: 1,
+            flex: 1,
+            overflowY: 'auto'
+          }}>
             {regularParticipants.map((participant) => (
-              <Box 
+              <ParticipantCard
                 key={`participant-${participant.id}`}
-                data-participant-id={participant.id}
-                sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  p: 1,
-                  opacity: draggedParticipant?.id === participant.id ? 0.5 : 1,
-                  cursor: 'move',
-                  '&:hover': {
-                    bgcolor: 'action.hover'
-                  }
-                }}
-                draggable={true}
+                participant={participant}
+                onDelete={() => handleRemoveFromGroup(participant.id)}
                 onDragStart={(e) => handleDragStart(e, participant)}
                 onDragEnd={handleDragEnd}
-              >
-                <DragHandleIcon sx={{ mr: 1, color: 'action.active', cursor: 'move' }} />
-                <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, minWidth: 0 }}>
-                  <Typography 
-                    sx={{ 
-                      flexGrow: 1,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    {participant.name}
-                  </Typography>
-                  {participant.check_in_status === 'checked_in' && (
-                    <Chip 
-                      label="已報到" 
-                      size="small" 
-                      color="success" 
-                      sx={{ mx: 1 }}
-                    />
-                  )}
-                  <Box
-                    component="span"
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      color: participant.gender === 'F' ? '#f06292' : '#2196f3',
-                      mx: 1
-                    }}
-                  >
-                    {participant.gender === 'F' ? (
-                      <FemaleIcon fontSize="small" />
-                    ) : (
-                      <MaleIcon fontSize="small" />
-                    )}
-                  </Box>
-                  <Typography sx={{ ml: 1, whiteSpace: 'nowrap' }}>
-                    差點: {participant.handicap}
-                  </Typography>
-                </Box>
-                <IconButton 
-                  size="small" 
-                  onClick={() => handleRemoveFromGroup(participant.group_code, participant.id)}
-                  sx={{ ml: 1 }}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </Box>
+                isDragging={draggedParticipant?.id === participant.id}
+                isOverflow={false}
+                onCheckIn={handleCheckIn}
+              />
             ))}
-          </List>
+          </Box>
 
-          {/* 臨時等待區 */}
+          {/* 溢出的參賽者區域 */}
           {overflowParticipants.length > 0 && (
-            <Box
-              sx={{
-                mt: 2,
-                p: 1,
-                bgcolor: '#fff3e0',
-                borderRadius: 1,
-                border: '1px dashed #ffb74d'
-              }}
-            >
-              <Typography 
-                variant="subtitle2" 
-                sx={{ 
-                  mb: 1,
-                  color: '#f57c00',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.5
-                }}
-              >
-                <WarningIcon fontSize="small" />
-                臨時等待區 ({overflowParticipants.length})
+            <Box sx={{ 
+              mt: 2,
+              pt: 2,
+              borderTop: '1px dashed #ffb74d'
+            }}>
+              <Typography variant="subtitle2" color="warning.main" gutterBottom>
+                超出人數上限 ({overflowParticipants.length} 人)
               </Typography>
-              <List disablePadding dense>
+              <Box sx={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: 1
+              }}>
                 {overflowParticipants.map((participant) => (
-                  <Box 
+                  <ParticipantCard
                     key={`participant-${participant.id}`}
-                    data-participant-id={participant.id}
-                    sx={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      p: 1,
-                      opacity: draggedParticipant?.id === participant.id ? 0.5 : 1,
-                      cursor: 'move',
-                      '&:hover': {
-                        bgcolor: 'action.hover'
-                      },
-                      backgroundColor: '#fff3e0',
-                      border: '1px solid #ffe0b2'
-                    }}
-                    draggable={true}
+                    participant={participant}
+                    onDelete={() => handleRemoveFromGroup(participant.id)}
                     onDragStart={(e) => handleDragStart(e, participant)}
                     onDragEnd={handleDragEnd}
-                  >
-                    <DragHandleIcon sx={{ mr: 1, color: 'action.active', cursor: 'move' }} />
-                    <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, minWidth: 0 }}>
-                      <Typography 
-                        sx={{ 
-                          flexGrow: 1,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
-                        }}
-                      >
-                        {participant.name}
-                      </Typography>
-                      {participant.check_in_status === 'checked_in' && (
-                        <Chip 
-                          label="已報到" 
-                          size="small" 
-                          color="success" 
-                          sx={{ mx: 1 }}
-                        />
-                      )}
-                      <Box
-                        component="span"
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          color: participant.gender === 'F' ? '#f06292' : '#2196f3',
-                          mx: 1
-                        }}
-                      >
-                        {participant.gender === 'F' ? (
-                          <FemaleIcon fontSize="small" />
-                        ) : (
-                          <MaleIcon fontSize="small" />
-                        )}
-                      </Box>
-                      <Typography sx={{ ml: 1, whiteSpace: 'nowrap' }}>
-                        差點: {participant.handicap}
-                      </Typography>
-                    </Box>
-                    <IconButton 
-                      size="small" 
-                      onClick={() => handleRemoveFromGroup(participant.group_code, participant.id)}
-                      sx={{ ml: 1 }}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </Box>
+                    isDragging={draggedParticipant?.id === participant.id}
+                    isOverflow={true}
+                    onCheckIn={handleCheckIn}
+                  />
                 ))}
-              </List>
+              </Box>
             </Box>
           )}
         </Paper>

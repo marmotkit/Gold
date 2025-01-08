@@ -19,6 +19,9 @@ import {
   Alert,
   CircularProgress
 } from '@mui/material';
+import config from '../config';
+
+const API_URL = config.API_URL;
 
 function TournamentManagement({ onTournamentSelect }) {
   const [tournaments, setTournaments] = useState([]);
@@ -35,12 +38,6 @@ function TournamentManagement({ onTournamentSelect }) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  const apiConfig = {
-    apiUrl: process.env.NODE_ENV === 'production'
-      ? 'https://gold-1.onrender.com/api/v1'
-      : 'http://localhost:8000/api/v1'
-  };
 
   useEffect(() => {
     loadTournaments();
@@ -76,7 +73,7 @@ function TournamentManagement({ onTournamentSelect }) {
         setError(null);
 
         const response = await fetchWithTimeout(
-          `${apiConfig.apiUrl}/tournaments`,
+          `${API_URL}tournaments`,
           {
             method: 'GET',
             headers: {
@@ -171,7 +168,7 @@ function TournamentManagement({ onTournamentSelect }) {
         setError(null);
 
         const response = await fetchWithTimeout(
-          `${apiConfig.apiUrl}/tournaments`,
+          `${API_URL}tournaments`,
           {
             method: editingTournament ? 'PUT' : 'POST',
             headers: {
@@ -280,7 +277,7 @@ function TournamentManagement({ onTournamentSelect }) {
         setError(null);
 
         const response = await fetchWithTimeout(
-          `${apiConfig.apiUrl}/tournaments/${id}`,
+          `${API_URL}tournaments/${id}`,
           {
             method: 'DELETE',
             headers: {
