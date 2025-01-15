@@ -8,9 +8,7 @@ services:
       - key: FLASK_DEBUG
         value: "true"
       - key: DATABASE_URL
-        fromDatabase:
-          name: golf-db
-          property: connectionString
+        value: postgresql://golf_db_awhw_user:dBgFZEHSGPh3OdDlUWKV85Xm8wvH4ao0@dpg-cu3k1ppu0jms73dl4teg-a.singapore-postgres.render.com/golf_db_awhw
       - key: SQLALCHEMY_TRACK_MODIFICATIONS
         value: "false"
     healthCheckPath: /health
