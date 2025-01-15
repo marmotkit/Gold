@@ -1045,55 +1045,87 @@ def export_groups_diagram(tournament_id):
         <html>
         <head>
             <meta charset="UTF-8">
-            <title>{tournament.name} - 分組圖</title>
+            <title>{tournament.name} - 分組表</title>
             <style>
-                .group-container {{
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 20px;
+                body {{
+                    font-family: Arial, "Microsoft JhengHei", sans-serif;
                     padding: 20px;
                 }}
+                .header {{
+                    text-align: center;
+                    margin-bottom: 20px;
+                }}
+                .date {{
+                    text-align: right;
+                    color: #666;
+                    margin-bottom: 20px;
+                }}
+                .group-container {{
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                    gap: 20px;
+                    padding: 10px;
+                }}
                 .group-card {{
-                    border: 1px solid #ccc;
+                    border: 1px solid #ddd;
                     border-radius: 8px;
                     padding: 15px;
-                    width: 200px;
+                    background-color: #f8f9fa;
                 }}
                 .group-title {{
+                    font-size: 18px;
                     font-weight: bold;
                     margin-bottom: 10px;
-                    font-size: 16px;
+                    color: #2196f3;
+                    border-bottom: 2px solid #2196f3;
+                    padding-bottom: 5px;
                 }}
                 .participant {{
                     display: flex;
                     align-items: center;
+                    padding: 8px;
                     margin: 5px 0;
-                    padding: 5px;
                     border-radius: 4px;
+                    background-color: white;
                 }}
                 .participant.female {{
-                    background-color: #ffebee;
+                    background-color: #fce4ec;
                 }}
                 .gender-icon {{
-                    margin-right: 8px;
                     font-size: 20px;
+                    margin-right: 10px;
+                    font-weight: bold;
                 }}
-                .female-icon {{
+                .gender-icon.male {{
+                    color: #2196f3;
+                }}
+                .gender-icon.female {{
                     color: #e91e63;
                 }}
-                .male-icon {{
-                    color: #2196f3;
+                .participant-info {{
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    flex: 1;
                 }}
                 .handicap {{
                     color: #666;
-                    font-size: 12px;
-                    margin-left: 5px;
+                    margin-left: 10px;
+                }}
+                @media print {{
+                    .group-card {{
+                        break-inside: avoid;
+                    }}
                 }}
             </style>
         </head>
         <body>
-            <h1 style="text-align: center;">{tournament.name} - 分組表</h1>
-            <p style="text-align: right;">匯出日期: {datetime.now().strftime('%Y/%m/%d')}</p>
+            <div class="header">
+                <h1>{tournament.name} - 分組表</h1>
+            </div>
+            <div class="date">
+                匯出日期: {datetime.now().strftime('%Y/%m/%d')}
+            </div>
             <div class="group-container">
         """
         
@@ -1105,20 +1137,22 @@ def export_groups_diagram(tournament_id):
             """
             
             for p in group['participants']:
-                gender_icon = '♀️' if p['gender'] == 'F' else '♂️'
+                gender_icon = '👩' if p['gender'] == 'F' else '👨'
                 gender_class = 'female' if p['gender'] == 'F' else 'male'
-                icon_class = 'female-icon' if p['gender'] == 'F' else 'male-icon'
+                handicap_display = 'N/A' if p['handicap'] is None else p['handicap']
                 
                 html += f"""
                     <div class="participant {gender_class}">
-                        <span class="gender-icon {icon_class}">{gender_icon}</span>
-                        {p['name']}
-                        <span class="handicap">({p['handicap'] or 'N/A'})</span>
+                        <span class="gender-icon {gender_class}">{gender_icon}</span>
+                        <div class="participant-info">
+                            <span>{p['name']}</span>
+                            <span class="handicap">差點: {handicap_display}</span>
+                        </div>
                     </div>
                 """
             
             html += "</div>"
-        
+
         html += """
             </div>
         </body>

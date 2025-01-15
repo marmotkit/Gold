@@ -44,7 +44,7 @@ function ParticipantCard({ participant, onDelete, onDragStart, onDragEnd, isDrag
       <Typography sx={{ marginLeft: '8px', flex: 1 }}>
         {participant.name}
         <Typography variant="caption" sx={{ marginLeft: '8px', color: 'text.secondary' }}>
-          ({participant.handicap || 'N/A'})
+          ({participant.handicap === null ? 'N/A' : participant.handicap})
         </Typography>
       </Typography>
     </Box>
