@@ -97,6 +97,32 @@ def clean_text(text):
     text = re.sub(r'\s+', ' ', text)
     return text
 
+def clean_pre_group_code(value):
+    """清理預分組編號，確保是整數或空值"""
+    if pd.isna(value) or value == '' or value == 'nan':
+        return None
+        
+    try:
+        # 如果是數字，轉換為整數
+        if isinstance(value, (int, float)):
+            if pd.isna(value):  # 再次檢查 NaN
+                return None
+            return str(int(value))  # 轉換為整數後再轉為字串
+            
+        # 如果是字串，清理並轉換
+        if isinstance(value, str):
+            # 移除所有空白字符
+            value = re.sub(r'\s+', '', value)
+            # 如果是空字串，返回 None
+            if not value or value.lower() == 'nan':
+                return None
+            # 嘗試轉換為整數
+            return str(int(float(value)))
+            
+        return None
+    except (ValueError, TypeError):
+        return None
+
 # 創建應用程式
 app = Flask(__name__, static_folder='frontend/build', static_url_path='')
 
@@ -326,7 +352,7 @@ def import_participants(tournament_id):
             member_id = clean_text(str(row['會員編號'])) if '會員編號' in df.columns else None
             handicap = parse_handicap(row['差點'])
             
-            # 處理性別 - 根據會員編號判斷
+            # 處理性別
             gender = None
             if member_id:
                 if member_id.startswith('F'):
@@ -334,7 +360,6 @@ def import_participants(tournament_id):
                 elif member_id.startswith('M'):
                     gender = 'M'
             
-            # 如果沒有從會員編號判斷出性別，則從性別欄位判斷
             if not gender and '性別' in df.columns:
                 gender_value = str(row['性別']).strip().upper()
                 if gender_value in ['F', 'M']:
@@ -344,8 +369,8 @@ def import_participants(tournament_id):
                 elif gender_value == '男':
                     gender = 'M'
             
-            # 預分組編號
-            pre_group_code = clean_text(str(row['預分組編號'])) if '預分組編號' in df.columns else None
+            # 處理預分組編號
+            pre_group_code = clean_pre_group_code(row['預分組編號']) if '預分組編號' in df.columns else None
             
             if not name:
                 continue
