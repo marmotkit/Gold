@@ -1014,7 +1014,8 @@ def export_groups_diagram(tournament_id):
         
         # 獲取分組資料
         participants = Participant.query.filter_by(tournament_id=tournament_id)\
-            .order_by(Participant.group_code.asc(), Participant.display_order.asc()).all()
+            .order_by(func.cast(Participant.group_code, db.Integer).asc(), 
+                     Participant.display_order.asc()).all()
             
         # 按組別整理參賽者
         groups = {}
@@ -1022,7 +1023,11 @@ def export_groups_diagram(tournament_id):
             if p.group_code:
                 if p.group_code not in groups:
                     groups[p.group_code] = []
-                groups[p.group_code].append(p)
+                groups[p.group_code].append({
+                    'name': p.name,
+                    'gender': p.gender,
+                    'handicap': p.handicap if p.handicap is not None else 'N/A'
+                })
 
         # 生成 HTML
         html = f"""
@@ -1120,24 +1125,23 @@ def export_groups_diagram(tournament_id):
 
         # 添加分組資料
         for group_code in sorted(groups.keys(), key=lambda x: int(x) if x.isdigit() else float('inf')):
-            group = groups[group_code]
+            participants = groups[group_code]
             html += f"""
                 <div class="group-card">
-                    <div class="group-title">第 {group_code} 組 ({len(group)} 人)</div>
+                    <div class="group-title">第 {group_code} 組 ({len(participants)} 人)</div>
             """
             
-            for p in group:
-                gender_class = 'female' if p.gender == 'F' else 'male'
-                gender_icon = '👩' if p.gender == 'F' else '👨'
-                icon_class = 'female-icon' if p.gender == 'F' else 'male-icon'
-                handicap_display = p.handicap if p.handicap is not None else 'N/A'
+            for p in participants:
+                gender_class = 'female' if p['gender'] == 'F' else 'male'
+                gender_icon = '👩' if p['gender'] == 'F' else '👨'
+                icon_class = 'female-icon' if p['gender'] == 'F' else 'male-icon'
                 
                 html += f"""
                     <div class="participant {gender_class}">
                         <span class="gender-icon {icon_class}">{gender_icon}</span>
                         <div class="participant-info">
-                            <span class="name">{p.name}</span>
-                            <span class="handicap">差點: {handicap_display}</span>
+                            <span class="name">{p['name']}</span>
+                            <span class="handicap">差點: {p['handicap']}</span>
                         </div>
                     </div>
                 """
