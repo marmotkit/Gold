@@ -19,10 +19,15 @@ class ProductionConfig(Config):
     DEBUG = False
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     if SQLALCHEMY_DATABASE_URI:
-        # 處理 Postgres URL
         if SQLALCHEMY_DATABASE_URI.startswith('postgres://'):
             SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace('postgres://', 'postgresql://', 1)
         print(f"使用數據庫 URL: {SQLALCHEMY_DATABASE_URI}")
+    
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_size': 10,
+        'max_overflow': 20,
+        'pool_pre_ping': True
+    }
 
 config = {
     'development': DevelopmentConfig,

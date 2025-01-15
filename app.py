@@ -108,14 +108,9 @@ print(f"數據庫路徑: {app.config['SQLALCHEMY_DATABASE_URI']}")
 # 初始化擴展
 init_extensions(app)
 
-# 健康檢查端點
-@app.route('/health', methods=['GET'])
-def health_check():
-    app.logger.info('收到健康檢查請求')
-    return jsonify({
-        'status': 'healthy',
-        'timestamp': datetime.now().isoformat()
-    }), 200
+# 初始化數據庫
+db.init_app(app)
+migrate = Migrate(app, db)
 
 # 配置 CORS
 CORS(app, resources={
@@ -126,6 +121,15 @@ CORS(app, resources={
         "supports_credentials": True
     }
 })
+
+# 健康檢查端點
+@app.route('/health', methods=['GET'])
+def health_check():
+    app.logger.info('收到健康檢查請求')
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat()
+    }), 200
 
 @app.after_request
 def after_request(response):
@@ -1221,18 +1225,20 @@ def get_groups(tournament_id):
         app.logger.error(f"Error getting groups: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# 初始化遷移
-migrate = Migrate(app, db)
-
 # 在應用啟動時執行遷移
 with app.app_context():
     try:
-        upgrade()
-        print("數據庫遷移完成")
+        db.create_all()
+        print("數據庫表創建成功")
     except Exception as e:
-        print(f"數據庫遷移失敗: {str(e)}")
-        import traceback
-        print(traceback.format_exc())
+        print(f"創建數據庫表時出錯: {str(e)}")
+        try:
+            upgrade()
+            print("數據庫遷移成功")
+        except Exception as e:
+            print(f"數據庫遷移失敗: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
 
 if __name__ == '__main__':
     app.logger.info('應用啟動中...')
