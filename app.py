@@ -1282,23 +1282,19 @@ def get_groups(tournament_id):
             app.logger.error(f"找不到賽事 ID: {tournament_id}")
             return jsonify({"error": "找不到指定的賽事"}), 404
 
-        # 獲取該賽事的所有參賽者，包括未分組的
+        # 獲取該賽事的所有參賽者
         participants = Participant.query.filter_by(tournament_id=tournament_id)\
             .order_by(
-                Participant.group_code.asc(), 
+                func.cast(Participant.group_code, db.Integer).asc(),
                 Participant.display_order.asc()
             ).all()
         
         app.logger.info(f"找到 {len(participants)} 名參賽者")
         
-        # 按照組別分組，包括未分組的參賽者
+        # 按照組別分組
         groups = {}
-        ungrouped = []
-        
-        # 先處理已分組的參賽者
         for participant in participants:
             try:
-                # 檢查是否有分組
                 if participant.group_code:
                     group_id = str(participant.group_code)
                     group_name = f"第 {participant.group_code} 組"
@@ -1310,37 +1306,20 @@ def get_groups(tournament_id):
                             "participants": []
                         }
                     
+                    # 添加參賽者資料，包括差點
                     participant_data = {
                         "id": participant.id,
                         "name": participant.name,
                         "gender": participant.gender,
                         "registration_number": participant.registration_number,
-                        "handicap": participant.handicap,
+                        "handicap": participant.handicap,  # 確保這裡有差點資料
                         "pre_group_code": participant.pre_group_code
                     }
                     groups[group_name]["participants"].append(participant_data)
-                else:
-                    # 未分組的參賽者
-                    ungrouped.append({
-                        "id": participant.id,
-                        "name": participant.name,
-                        "gender": participant.gender,
-                        "registration_number": participant.registration_number,
-                        "handicap": participant.handicap,
-                        "pre_group_code": participant.pre_group_code
-                    })
                     
             except Exception as e:
                 app.logger.error(f"處理參賽者 {participant.id} 時發生錯誤: {str(e)}")
                 continue
-
-        # 如果有未分組的參賽者，添加到分組列表中
-        if ungrouped:
-            groups["未分組"] = {
-                "id": "0",
-                "name": "未分組",
-                "participants": ungrouped
-            }
 
         # 轉換為列表格式並排序
         try:
@@ -1349,7 +1328,7 @@ def get_groups(tournament_id):
                 key=lambda x: int(x["id"]) if x["id"].isdigit() else float('inf')
             )
             app.logger.info(f"成功創建 {len(groups_list)} 個分組")
-            app.logger.info(f"分組資料: {groups_list}")
+            app.logger.debug(f"分組資料: {groups_list}")  # 添加詳細日誌
             
         except Exception as e:
             app.logger.error(f"排序分組時發生錯誤: {str(e)}")
