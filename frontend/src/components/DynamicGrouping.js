@@ -20,11 +20,26 @@ import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import MaleIcon from '@mui/icons-material/Male';
 import FemaleIcon from '@mui/icons-material/Female';
 import AddIcon from '@mui/icons-material/Add';
+import LockIcon from '@mui/icons-material/Lock';
+import LockOpenIcon from '@mui/icons-material/LockOpen';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import config from '../config';
 
 const API_URL = config.API_URL;
 
-function ParticipantCard({ participant, onDelete, onDragStart, onDragEnd, isDragging, isOverflow, isMoved }) {
+function ParticipantCard({ 
+  participant, 
+  onDelete, 
+  onDragStart, 
+  onDragEnd, 
+  isDragging, 
+  isOverflow, 
+  isMoved,
+  onToggleCheckIn 
+}) {
+  const isCheckedIn = participant.check_in_status === 'checked_in';
+  
   return (
     <Box 
       sx={{ 
@@ -56,7 +71,35 @@ function ParticipantCard({ participant, onDelete, onDragStart, onDragEnd, isDrag
     >
       <Typography variant="body2" sx={{ flexGrow: 1, fontSize: 'inherit' }}>
         {participant.name}
+        <Typography 
+          component="span" 
+          sx={{ 
+            ml: 1,
+            color: 'text.secondary',
+            fontSize: '0.8rem'
+          }}
+        >
+          ({participant.handicap || 'N/A'})
+        </Typography>
       </Typography>
+      <IconButton 
+        size="small" 
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleCheckIn(participant);
+        }}
+        sx={{ 
+          color: isCheckedIn ? 'success.main' : 'action.disabled',
+          '&:hover': {
+            color: isCheckedIn ? 'success.dark' : 'action.active'
+          }
+        }}
+      >
+        {isCheckedIn ? 
+          <CheckCircleIcon sx={{ fontSize: '1.2rem' }} /> : 
+          <RadioButtonUncheckedIcon sx={{ fontSize: '1.2rem' }} />
+        }
+      </IconButton>
       {participant.gender === 'M' ? (
         <MaleIcon sx={{ fontSize: '1rem', color: 'primary.main' }} />
       ) : (
@@ -83,6 +126,7 @@ function DynamicGrouping({ tournament }) {
   const [newGroupName, setNewGroupName] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
   const [movedParticipants, setMovedParticipants] = useState(new Set());
+  const [lockedGroups, setLockedGroups] = useState(new Set());
 
   useEffect(() => {
     if (tournament) {
@@ -126,7 +170,12 @@ function DynamicGrouping({ tournament }) {
   };
 
   const handleDrop = (targetGroupId) => {
-    if (!draggedParticipant || targetGroupId === draggedFromGroup) return;
+    if (!draggedParticipant || 
+        targetGroupId === draggedFromGroup || 
+        lockedGroups.has(targetGroupId) || 
+        lockedGroups.has(draggedFromGroup)) {
+      return;
+    }
 
     setGroups(prevGroups => {
       // 創建新的分組陣列
@@ -160,6 +209,10 @@ function DynamicGrouping({ tournament }) {
   };
 
   const handleDeleteParticipant = (groupId, participantId) => {
+    if (lockedGroups.has(groupId)) {
+      showMessage('無法修改已鎖定的分組', 'warning');
+      return;
+    }
     setGroups(prevGroups => {
       const newGroups = prevGroups.map(group => {
         if (group.id === groupId) {
@@ -275,12 +328,34 @@ function DynamicGrouping({ tournament }) {
                 background-color: white;
                 border: 1px solid #ddd;
                 border-radius: 4px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+              }
+              .handicap {
+                color: #666;
+                font-size: 0.9em;
+                margin-left: 8px;
               }
               .moved {
                 background-color: #fff9c4;
               }
               .female {
                 background-color: #fce4ec;
+              }
+              .gender-indicator {
+                font-weight: bold;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 0.8em;
+              }
+              .gender-male {
+                background-color: #e3f2fd;
+                color: #1976d2;
+              }
+              .gender-female {
+                background-color: #fce4ec;
+                color: #d81b60;
               }
               @media print {
                 @page {
@@ -307,8 +382,13 @@ function DynamicGrouping({ tournament }) {
                   <div class="group-title">${group.name} (${group.participants.length} 人)</div>
                   ${group.participants.map(participant => `
                     <div class="participant ${participant.gender === 'F' ? 'female' : ''} ${movedParticipants.has(participant.id) ? 'moved' : ''}">
-                      ${participant.name}
-                      ${participant.gender === 'F' ? '👩' : '👨'}
+                      <span>
+                        ${participant.name}
+                        <span class="handicap">差點: ${participant.handicap || 'N/A'}</span>
+                      </span>
+                      <span class="gender-indicator ${participant.gender === 'F' ? 'gender-female' : 'gender-male'}">
+                        ${participant.gender === 'F' ? '女' : '男'}
+                      </span>
                     </div>
                   `).join('')}
                 </div>
@@ -332,6 +412,66 @@ function DynamicGrouping({ tournament }) {
     } catch (error) {
       console.error('列印錯誤:', error);
       showMessage(error.message || '列印失敗', 'error');
+      setLoading(false);
+    }
+  };
+
+  const handleToggleLock = (groupId) => {
+    setLockedGroups(prev => {
+      const newLocked = new Set(prev);
+      if (newLocked.has(groupId)) {
+        newLocked.delete(groupId);
+      } else {
+        newLocked.add(groupId);
+      }
+      return newLocked;
+    });
+  };
+
+  const handleToggleCheckIn = async (participant) => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${API_URL}/tournaments/${tournament.id}/participants/${participant.id}/check-in`, 
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            check_in_status: participant.check_in_status === 'checked_in' ? 'not_checked_in' : 'checked_in',
+            check_in_time: participant.check_in_status === 'checked_in' ? null : new Date().toISOString()
+          }),
+        }
+      );
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || '報到狀�更新失敗');
+      }
+
+      // 更新本地狀態
+      setGroups(prevGroups => {
+        return prevGroups.map(group => ({
+          ...group,
+          participants: group.participants.map(p => 
+            p.id === participant.id 
+              ? { 
+                  ...p, 
+                  check_in_status: data.participant.check_in_status,
+                  check_in_time: data.participant.check_in_time
+                }
+              : p
+          )
+        }));
+      });
+
+      showMessage(data.message || `${participant.name} ${participant.check_in_status !== 'checked_in' ? '報到成功' : '取消報到'}`, 'success');
+    } catch (error) {
+      console.error('報到錯誤:', error);
+      showMessage(error.message || '報到狀態更新失敗', 'error');
+    } finally {
       setLoading(false);
     }
   };
@@ -382,19 +522,36 @@ function DynamicGrouping({ tournament }) {
                 sx={{
                   p: 1,
                   height: '100%',
-                  backgroundColor: '#f5f5f5'
+                  backgroundColor: '#f5f5f5',
+                  position: 'relative'
                 }}
                 onDragOver={handleDragOver}
                 onDrop={() => handleDrop(group.id)}
               >
-                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
-                  {group.name} ({group.participants.length} 人)
-                </Typography>
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  mb: 1 
+                }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                    {group.name} ({group.participants.length} 人)
+                  </Typography>
+                  <IconButton 
+                    size="small" 
+                    onClick={() => handleToggleLock(group.id)}
+                    color={lockedGroups.has(group.id) ? "primary" : "default"}
+                  >
+                    {lockedGroups.has(group.id) ? <LockIcon /> : <LockOpenIcon />}
+                  </IconButton>
+                </Box>
                 <Box sx={{ 
                   minHeight: 50,
                   maxHeight: '200px',
                   overflowY: 'auto',
-                  '& > *:not(:last-child)': { mb: 0.5 }
+                  '& > *:not(:last-child)': { mb: 0.5 },
+                  opacity: lockedGroups.has(group.id) ? 0.7 : 1,
+                  pointerEvents: lockedGroups.has(group.id) ? 'none' : 'auto'
                 }}>
                   {group.participants.map(participant => (
                     <ParticipantCard
@@ -406,6 +563,7 @@ function DynamicGrouping({ tournament }) {
                       isDragging={draggedParticipant?.id === participant.id}
                       isOverflow={group.participants.length > 4}
                       isMoved={movedParticipants.has(participant.id)}
+                      onToggleCheckIn={handleToggleCheckIn}
                     />
                   ))}
                 </Box>
