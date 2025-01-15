@@ -109,16 +109,7 @@ def health_check():
     }), 200
 
 # 配置 CORS
-CORS(app, resources={
-    r"/*": {
-        "origins": ["http://localhost:3000", "http://localhost:8000", "http://172.20.2.9:8000", "https://gold-tawny.vercel.app"],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Accept", "Authorization"],
-        "supports_credentials": True,
-        "max_age": 3600,
-        "expose_headers": ["Content-Type", "Content-Length", "Content-Disposition"]
-    }
-})
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 @app.after_request
 def after_request(response):
