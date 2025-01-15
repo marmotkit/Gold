@@ -303,59 +303,57 @@ def import_participants(tournament_id):
         # 清除既有的參賽者資料
         Participant.query.filter_by(tournament_id=tournament_id).delete()
         
-        # 匯入新的參賽者資料
+        # 處理每一行資料
+        participants_data = []
         for index, row in df.iterrows():
-            # 解析差點
+            # 清理並驗證資料
+            name = clean_text(str(row['姓名']))
+            member_id = clean_text(str(row['會員編號'])) if '會員編號' in df.columns else None
             handicap = parse_handicap(row['差點'])
             
-            # 打印 Excel 的所有列
-            print(f"\n第 {index+1} 筆資料的所有欄位：")
-            for column in df.columns:
-                print(f"{column}: {row[column]}, 類型: {type(row[column])}")
-            
-            # 獲取性別值
-            raw_gender = row.get('性別', '')
-            print(f"原始性別值：{raw_gender}，類型：{type(raw_gender)}")
-            
-            # 轉換性別值
+            # 處理性別 - 根據會員編號判斷
             gender = None
-            if pd.notna(raw_gender):  # 檢查是否為 NaN
-                gender = str(raw_gender).strip().upper()  # 轉換為大寫
-                if gender == '男' or gender == 'M':
-                    gender = 'M'
-                elif gender == '女' or gender == 'F':
+            if member_id:
+                if member_id.startswith('F'):
                     gender = 'F'
-                else:
-                    gender = None
-                    
-            print(f"處理後的性別值：{gender}")
+                elif member_id.startswith('M'):
+                    gender = 'M'
             
-            # 直接處理預分組編號
-            pre_group_code = None
-            if '預分組編號' in df.columns:
-                raw_value = row['預分組編號']
-                print(f"\n第 {index+1} 筆資料的預分組編號原始值：{raw_value}，類型：{type(raw_value)}")
+            # 如果沒有從會員編號判斷出性別，則從性別欄位判斷
+            if not gender and '性別' in df.columns:
+                gender_value = str(row['性別']).strip().upper()
+                if gender_value in ['F', 'M']:
+                    gender = gender_value
+                elif gender_value == '女':
+                    gender = 'F'
+                elif gender_value == '男':
+                    gender = 'M'
+            
+            # 預分組編號
+            pre_group_code = clean_text(str(row['預分組編號'])) if '預分組編號' in df.columns else None
+            
+            if not name:
+                continue
                 
-                if not pd.isna(raw_value):  # 檢查是否為 NaN
-                    if isinstance(raw_value, (int, float)):
-                        pre_group_code = str(int(raw_value))  # 轉換數字為字串
-                    else:
-                        pre_group_code = str(raw_value).strip()  # 其他類型轉換為字串
-                    
-                    if pre_group_code == '' or pre_group_code.lower() == 'nan':
-                        pre_group_code = None
-                    
-                print(f"處理後的預分組編號：{pre_group_code}")
+            participants_data.append({
+                'name': name,
+                'member_id': member_id,
+                'gender': gender,
+                'handicap': handicap,
+                'pre_group_code': pre_group_code
+            })
             
+        # 匯入新的參賽者資料
+        for participant_data in participants_data:
             # 建立參賽者
             participant = Participant(
                 tournament_id=tournament_id,
-                name=clean_text(str(row['姓名'])),
-                gender=gender,
-                handicap=handicap,
-                member_number=str(row.get('會員編號', '')),
+                name=participant_data['name'],
+                gender=participant_data['gender'],
+                handicap=participant_data['handicap'],
+                member_number=participant_data['member_id'],
                 registration_number=f'A{index+1:02d}',
-                pre_group_code=pre_group_code,
+                pre_group_code=participant_data['pre_group_code'],
                 display_order=index
             )
             db.session.add(participant)
@@ -1228,7 +1226,8 @@ def get_groups(tournament_id):
                     "name": participant.name,
                     "gender": participant.gender,
                     "registration_number": participant.registration_number,
-                    "handicap": participant.handicap
+                    "handicap": participant.handicap,
+                    "member_id": participant.member_id
                 })
 
         # 轉換為列表格式並排序
