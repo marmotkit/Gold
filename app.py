@@ -980,6 +980,8 @@ def export_groups_diagram(tournament_id):
                 Participant.display_order.asc()
             ).all()
             
+        app.logger.info(f"找到 {len(participants)} 位參賽者")
+            
         # 生成 HTML 內容
         html_content = f"""
         <!DOCTYPE html>
@@ -988,31 +990,52 @@ def export_groups_diagram(tournament_id):
             <meta charset="UTF-8">
             <title>{tournament.name} - 分組表</title>
             <style>
-                body {{ font-family: Arial, sans-serif; margin: 20px; }}
-                .title {{ text-align: center; margin-bottom: 20px; }}
-                .date {{ text-align: right; margin-bottom: 20px; color: #666; }}
+                @page {{ size: A4 landscape; margin: 1cm; }}
+                body {{ 
+                    font-family: "Microsoft JhengHei", Arial, sans-serif;
+                    margin: 20px;
+                    background-color: white;
+                }}
+                .title {{ 
+                    text-align: center;
+                    margin-bottom: 20px;
+                    font-size: 24px;
+                    font-weight: bold;
+                }}
+                .date {{ 
+                    text-align: right;
+                    margin-bottom: 20px;
+                    color: #666;
+                }}
                 .groups-container {{ 
-                    display: flex;
-                    flex-wrap: wrap;
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
                     gap: 20px;
-                    justify-content: flex-start;
+                    justify-content: start;
                 }}
                 .group-card {{
-                    border: 1px solid #ccc;
-                    border-radius: 5px;
-                    padding: 10px;
-                    width: 200px;
-                    background-color: #f9f9f9;
+                    border: 1px solid #ddd;
+                    border-radius: 8px;
+                    padding: 15px;
+                    background-color: #fff;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 }}
                 .group-title {{
                     font-weight: bold;
                     margin-bottom: 10px;
                     padding-bottom: 5px;
-                    border-bottom: 1px solid #eee;
+                    border-bottom: 2px solid #4a90e2;
+                    color: #2c3e50;
+                    font-size: 16px;
                 }}
                 .participant {{
-                    margin: 5px 0;
-                    padding: 5px;
+                    margin: 8px 0;
+                    padding: 8px;
+                    border-radius: 4px;
+                    background-color: #f8f9fa;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
                 }}
                 .female {{
                     background-color: #ffe6e6;
@@ -1020,6 +1043,12 @@ def export_groups_diagram(tournament_id):
                 .handicap {{
                     color: #666;
                     font-size: 0.9em;
+                    margin-left: 10px;
+                }}
+                @media print {{
+                    body {{ margin: 0; }}
+                    .groups-container {{ page-break-inside: avoid; }}
+                    .group-card {{ break-inside: avoid; }}
                 }}
             </style>
         </head>
@@ -1033,23 +1062,27 @@ def export_groups_diagram(tournament_id):
         groups = {}
         for p in participants:
             if p.group_code:
-                if p.group_code not in groups:
-                    groups[p.group_code] = []
-                groups[p.group_code].append(p)
+                group_code = str(p.group_code)
+                if group_code not in groups:
+                    groups[group_code] = []
+                groups[group_code].append(p)
+                app.logger.info(f"參賽者 {p.name} 被分配到第 {group_code} 組")
         
         # 生成每個組別的 HTML
         for group_code in sorted(groups.keys(), key=lambda x: int(x) if x.isdigit() else float('inf')):
+            group = groups[group_code]
             html_content += f"""
                 <div class="group-card">
-                    <div class="group-title">第 {group_code} 組 ({len(groups[group_code])} 人)</div>
+                    <div class="group-title">第 {group_code} 組 ({len(group)} 人)</div>
             """
             
-            for p in groups[group_code]:
+            for p in group:
                 gender_class = 'female' if p.gender == 'F' else ''
+                handicap = p.handicap if p.handicap is not None else 'N/A'
                 html_content += f"""
                     <div class="participant {gender_class}">
-                        {p.name}
-                        <span class="handicap">({p.handicap})</span>
+                        <span>{p.name}</span>
+                        <span class="handicap">{handicap}</span>
                     </div>
                 """
             
