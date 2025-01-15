@@ -48,6 +48,7 @@ from extensions import db, init_extensions
 from models import Tournament, Participant
 import re
 import tempfile
+from flask_migrate import Migrate
 
 def parse_handicap(value):
     """解析差點值"""
@@ -109,7 +110,14 @@ def health_check():
     }), 200
 
 # 配置 CORS
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app, resources={
+    r"/*": {
+        "origins": ["https://gold-1-ccpj.onrender.com"],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Accept", "Authorization"],
+        "supports_credentials": True
+    }
+})
 
 @app.after_request
 def after_request(response):
@@ -132,16 +140,9 @@ def handle_options():
 @app.route('/tournaments', methods=['GET'])
 def get_tournaments():
     try:
-        print('================== 請求開始 ==================')
-        print(f'請求路徑: {request.path}')
-        print(f'請求方法: {request.method}')
-        print(f'請求來源: {request.headers.get("Origin")}')
-        print(f'請求頭部:')
-        for name, value in request.headers.items():
-            print(f'  {name}: {value}')
-        print('============================================')
-        
         print("收到獲取賽事列表請求")
+        print(f"數據庫 URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
+        
         tournaments = Tournament.query.all()
         result = []
         for tournament in tournaments:
@@ -152,11 +153,12 @@ def get_tournaments():
             })
         print(f"返回賽事列表: {result}")
         
-        response = jsonify(result)
-        return response
+        return jsonify(result)
         
     except Exception as e:
         print(f"獲取賽事列表時發生錯誤: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 # 建立新賽事
@@ -1196,12 +1198,20 @@ def get_groups(tournament_id):
 
         # 轉換為列表格式並排序
         groups_list = sorted(list(groups.values()), key=lambda x: int(x["id"]))
-        
+
         return jsonify(groups_list)
 
     except Exception as e:
         app.logger.error(f"Error getting groups: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+# 在應用啟動時初始化數據庫
+with app.app_context():
+    try:
+        db.create_all()
+        print("數據庫表已成功創建")
+    except Exception as e:
+        print(f"創建數據庫表時出錯: {str(e)}")
 
 if __name__ == '__main__':
     app.logger.info('應用啟動中...')

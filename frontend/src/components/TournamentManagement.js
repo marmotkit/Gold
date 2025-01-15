@@ -44,96 +44,24 @@ function TournamentManagement({ onTournamentSelect }) {
   }, []);
 
   const loadTournaments = async () => {
-    let retryCount = 0;
-    const maxRetries = 3;
-    const retryDelay = 1000; // 1 second
-    const timeout = 5000; // 5 seconds
-
-    const fetchWithTimeout = async (url, options, timeout) => {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), timeout);
-
-      try {
-        const response = await fetch(url, {
-          ...options,
-          signal: controller.signal
-        });
-        clearTimeout(id);
-        return response;
-      } catch (error) {
-        clearTimeout(id);
-        throw error;
-      }
-    };
-
-    const fetchWithRetry = async () => {
-      try {
-        console.log(`嘗試載入賽事列表... (重試次數: ${retryCount})`);
-        setLoading(true);
-        setError(null);
-
-        const response = await fetchWithTimeout(
-          `${API_URL}tournaments`,
-          {
+    try {
+        console.log('Fetching from:', `${config.API_URL}tournaments`);
+        const response = await fetch(`${config.API_URL}tournaments`, {
             method: 'GET',
             headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json'
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
             },
-            credentials: 'include',
-            mode: 'cors'
-          },
-          timeout
-        );
-
-        console.log('API 回應狀態:', response.status);
-        console.log('API 回應頭部:', Object.fromEntries(response.headers.entries()));
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('API 錯誤回應:', errorText);
-          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-        }
-
-        const data = await response.json();
-        console.log('接收到的數據:', data);
-        setTournaments(data);
-        return true;
-      } catch (error) {
-        console.error(`載入賽事列表時發生錯誤 (重試次數: ${retryCount}):`, error);
-        
-        if (error.name === 'AbortError') {
-          console.error('請求超時');
-          throw new Error('請求超時，請稍後再試');
-        }
-        
-        if (retryCount < maxRetries) {
-          retryCount++;
-          console.log(`等待 ${retryDelay}ms 後重試...`);
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
-          return false;
-        }
-        
-        setError(error.message);
-        setSnackbar({
-          open: true,
-          message: '載入賽事列表失敗：' + error.message,
-          severity: 'error'
+            credentials: 'omit'
         });
-        throw error;
-      } finally {
-        if (retryCount >= maxRetries) {
-          setLoading(false);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
-      }
-    };
-
-    while (retryCount <= maxRetries) {
-      const success = await fetchWithRetry();
-      if (success) {
-        setLoading(false);
-        break;
-      }
+        const data = await response.json();
+        setTournaments(data);
+    } catch (error) {
+        console.error('Error fetching tournaments:', error);
+        throw error;
     }
   };
 
