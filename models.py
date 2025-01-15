@@ -1,31 +1,15 @@
-from datetime import datetime
 from extensions import db
+from datetime import datetime
 
 class Tournament(db.Model):
     __tablename__ = 'tournaments'
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    date = db.Column(db.Date, nullable=False)
-    location = db.Column(db.String(200))
-    description = db.Column(db.Text)
-    group_order = db.Column(db.Text)  # 存儲分組順序，以逗號分隔
+    date = db.Column(db.Date)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    participants = db.relationship('Participant', backref='tournament', lazy=True)
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'date': self.date.isoformat() if self.date else None,
-            'location': self.location,
-            'description': self.description,
-            'group_order': self.group_order,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
+    participants = db.relationship('Participant', backref='tournament', lazy=True, cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<Tournament {self.name}>'

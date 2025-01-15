@@ -165,38 +165,41 @@ def get_tournaments():
 @app.route('/tournaments', methods=['POST'])
 def create_tournament():
     try:
-        print('================== 請求開始 ==================')
-        print(f'請求路徑: {request.path}')
-        print(f'請求方法: {request.method}')
-        print(f'請求來源: {request.headers.get("Origin")}')
-        print(f'請求頭部:')
-        for name, value in request.headers.items():
-            print(f'  {name}: {value}')
-        print('============================================')
-        
-        print("收到創建賽事請求")
-        print(f"請求數據: {request.json}")
-        
         data = request.json
+        print(f"接收到的數據: {data}")
+        
+        # 驗證必要字段
+        if not data.get('name'):
+            return jsonify({'error': '賽事名稱不能為空'}), 400
+            
+        # 解析日期
+        date = None
+        if data.get('date'):
+            try:
+                date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'error': '日期格式無效'}), 400
+        
+        # 創建賽事
         tournament = Tournament(
             name=data['name'],
-            date=datetime.strptime(data['date'], '%Y-%m-%d').date() if data.get('date') else None
+            date=date
         )
+        
         db.session.add(tournament)
         db.session.commit()
         
-        result = {
+        return jsonify({
             'id': tournament.id,
             'name': tournament.name,
             'date': tournament.date.strftime('%Y-%m-%d') if tournament.date else None
-        }
-        print(f"創建賽事成功: {result}")
-        
-        return jsonify(result), 201
+        }), 201
         
     except Exception as e:
-        print(f"創建賽事時發生錯誤: {str(e)}")
         db.session.rollback()
+        print(f"創建賽事時發生錯誤: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 # 獲取賽事的參賽者列表
