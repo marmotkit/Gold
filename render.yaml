@@ -3,20 +3,12 @@ services:
     name: gold
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --log-level debug --access-logfile - --error-logfile - --capture-output
+    startCommand: gunicorn app:app
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.8.0
-      - key: FLASK_APP
-        value: app.py
       - key: FLASK_ENV
-        value: development
-      - key: FLASK_DEBUG
-        value: "1"
-      - key: PYTHONUNBUFFERED
-        value: "1"
-      - key: GUNICORN_CMD_ARGS
-        value: "--timeout 120 --workers 2 --threads 4"
+        value: production
+      - key: SECRET_KEY
+        value: 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b
     headers:
       - path: /*
         name: Access-Control-Allow-Origin

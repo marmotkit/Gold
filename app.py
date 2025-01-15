@@ -40,7 +40,7 @@ from io import BytesIO
 import pandas as pd
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from sqlalchemy import func
 from config import config
@@ -1161,8 +1161,15 @@ def update_participant_notes(tournament_id, participant_id):
         }), 400
 
 @app.route('/')
-def serve():
-    return app.send_static_file('index.html')
+def index():
+    return jsonify({
+        'status': 'ok',
+        'message': 'Golf Tournament API is running'
+    })
+
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204  # 返回空回應，狀態碼 204 表示 No Content
 
 # 獲取分組資料
 @app.route('/tournaments/<int:tournament_id>/groups', methods=['GET'])
