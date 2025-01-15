@@ -16,7 +16,7 @@ class DevelopmentConfig(Config):
     SQLALCHEMY_DATABASE_URI = 'sqlite:///instance/golf.db'
 
 class ProductionConfig(Config):
-    DEBUG = False
+    DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     if SQLALCHEMY_DATABASE_URI:
         if SQLALCHEMY_DATABASE_URI.startswith('postgres://'):
@@ -28,7 +28,8 @@ class ProductionConfig(Config):
         'max_overflow': 10,
         'pool_timeout': 30,
         'pool_recycle': 1800,
-        'pool_pre_ping': True
+        'pool_pre_ping': True,
+        'echo': True
     }
 
 config = {

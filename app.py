@@ -152,8 +152,8 @@ def handle_options():
 @app.route('/tournaments', methods=['GET'])
 def get_tournaments():
     try:
-        print("收到獲取賽事列表請求")
-        print(f"數據庫 URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
+        app.logger.info("收到獲取賽事列表請求")
+        app.logger.info(f"數據庫 URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
         
         tournaments = Tournament.query.all()
         result = []
@@ -163,14 +163,14 @@ def get_tournaments():
                 'name': tournament.name,
                 'date': tournament.date.strftime('%Y-%m-%d') if tournament.date else None
             })
-        print(f"返回賽事列表: {result}")
+        app.logger.info(f"返回賽事列表: {result}")
         
         return jsonify(result)
         
     except Exception as e:
-        print(f"獲取賽事列表時發生錯誤: {str(e)}")
+        app.logger.error(f"獲取賽事列表時發生錯誤: {str(e)}")
         import traceback
-        print(traceback.format_exc())
+        app.logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 # 建立新賽事
