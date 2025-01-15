@@ -3,7 +3,7 @@ services:
     name: golf-backend
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --timeout 120 --workers 4 --threads 2
+    startCommand: gunicorn app:app --timeout 120 --workers 4 --threads 2 --keep-alive 65
     envVars:
       - key: FLASK_ENV
         value: production
@@ -15,6 +15,11 @@ services:
         value: "true"
       - key: GUNICORN_CMD_ARGS
         value: "--access-logfile - --error-logfile - --capture-output --enable-stdio-inheritance"
+    scaling:
+      minInstances: 1
+      maxInstances: 1
+      targetMemoryPercent: 80
+      targetCPUPercent: 80
 
 databases:
   - name: golf-db

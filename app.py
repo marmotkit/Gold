@@ -185,9 +185,8 @@ def get_tournaments():
 @app.route('/tournaments', methods=['POST'])
 def create_tournament():
     try:
-        data = request.json
+        data = request.get_json()
         app.logger.info(f"接收到的數據: {data}")
-        app.logger.info(f"數據庫 URL: {app.config['SQLALCHEMY_DATABASE_URI']}")
         
         # 驗證必要字段
         if not data.get('name'):
@@ -217,7 +216,8 @@ def create_tournament():
         return jsonify({
             'id': tournament.id,
             'name': tournament.name,
-            'date': tournament.date.strftime('%Y-%m-%d') if tournament.date else None
+            'date': tournament.date.strftime('%Y-%m-%d') if tournament.date else None,
+            'message': '賽事創建成功'
         }), 201
         
     except Exception as e:
