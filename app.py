@@ -588,6 +588,8 @@ def update_check_in_status(tournament_id, participant_id):
 @app.route('/tournaments/<int:tournament_id>/auto-group', methods=['POST'])
 def auto_group(tournament_id):
     try:
+        app.logger.info(f"開始自動分組 - 賽事ID: {tournament_id}")
+        
         # 獲取所有參賽者
         participants = Participant.query.filter_by(tournament_id=tournament_id).all()
         if not participants:
@@ -597,6 +599,10 @@ def auto_group(tournament_id):
         pre_grouped = {}  # 按預分組編號分類
         ungrouped = []    # 沒有預分組的參賽者
 
+        # 先按差點排序所有參賽者
+        participants.sort(key=lambda p: float(p.handicap if p.handicap is not None else 999.0))
+
+        # 分類參賽者
         for p in participants:
             if p.pre_group_code:
                 if p.pre_group_code not in pre_grouped:
@@ -605,31 +611,21 @@ def auto_group(tournament_id):
             else:
                 ungrouped.append(p)
 
-        # 按差點排序沒有預分組的參賽者
-        ungrouped.sort(key=lambda p: float(p.handicap if p.handicap is not None else 999.0))
-
-        # 開始分組
         group_number = 1
-        final_groups = []
         
         # 先處理預分組
         for pre_code in sorted(pre_grouped.keys()):
             group = pre_grouped[pre_code]
-            while len(group) > 0:
-                # 取出最多4人作為一組
-                current_group = group[:4]
-                group = group[4:]
+            
+            # 如果預分組不足4人，從未分組中補充
+            while len(group) < 4 and ungrouped:
+                group.append(ungrouped.pop(0))
+            
+            # 設置組別
+            for p in group:
+                p.group_code = str(group_number)
                 
-                # 如果這組不足4人且還有未分組的人，從未分組的人中補充
-                while len(current_group) < 4 and ungrouped:
-                    current_group.append(ungrouped.pop(0))
-                
-                # 設置組別
-                for p in current_group:
-                    p.group_code = str(group_number)
-                
-                final_groups.append(current_group)
-                group_number += 1
+            group_number += 1
 
         # 處理剩下的未分組參賽者
         while ungrouped:
@@ -640,28 +636,32 @@ def auto_group(tournament_id):
             for p in current_group:
                 p.group_code = str(group_number)
             
-            final_groups.append(current_group)
-            group_number += 1
+            if current_group:  # 只有在有參賽者時才增加組號
+                group_number += 1
 
         # 設置顯示順序
-        display_order = 1
-        for group in final_groups:
-            for p in group:
-                p.display_order = display_order
-                display_order += 1
+        all_participants = Participant.query.filter_by(tournament_id=tournament_id)\
+            .order_by(Participant.group_code.asc())\
+            .all()
+            
+        for i, p in enumerate(all_participants):
+            p.display_order = i + 1
 
         # 儲存變更
         db.session.commit()
-
+        
+        app.logger.info("自動分組完成")
         return jsonify({
             'message': '自動分組完成',
-            'total_groups': len(final_groups),
+            'total_groups': group_number - 1,
             'total_participants': len(participants)
         })
 
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"自動分組錯誤: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
         return jsonify({'error': '自動分組失敗：' + str(e)}), 500
 
 # 儲存分組

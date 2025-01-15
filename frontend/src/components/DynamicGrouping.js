@@ -20,9 +20,7 @@ import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import MaleIcon from '@mui/icons-material/Male';
 import FemaleIcon from '@mui/icons-material/Female';
 import AddIcon from '@mui/icons-material/Add';
-import config from '../config';
-
-const API_URL = config.API_URL;
+import { buildApiUrl } from '../config';
 
 function ParticipantCard({ participant, onDelete, onDragStart, onDragEnd, isDragging, isOverflow, isMoved }) {
   return (
@@ -92,16 +90,22 @@ function DynamicGrouping({ tournament }) {
 
   const fetchGroups = async () => {
     try {
-      setLoading(true);
-      const response = await fetch(`${API_URL}/tournaments/${tournament.id}/groups`);
-      if (!response.ok) throw new Error('Failed to fetch groups');
+      console.log('開始獲取分組數據...');
+      const response = await fetch(buildApiUrl(`/tournaments/${tournament.id}/groups`));
+      console.log('分組數據回應狀態:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('獲取分組數據失敗:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
+      console.log('獲取到的分組數據:', data);
       setGroups(data);
-    } catch (err) {
-      setError(err.message);
-      showMessage(err.message, 'error');
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error('獲取分組時發生錯誤:', error);
+      setError(error.message);
     }
   };
 
@@ -192,7 +196,7 @@ function DynamicGrouping({ tournament }) {
   const handleSaveChanges = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/tournaments/${tournament.id}/groups`, {
+      const response = await fetch(buildApiUrl(`/tournaments/${tournament.id}/groups`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
