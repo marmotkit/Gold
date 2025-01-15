@@ -1,11 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 
-db = SQLAlchemy(engine_options={
-    'pool_pre_ping': True,
-    'pool_recycle': 300,
-})
-
+db = SQLAlchemy()
 migrate = Migrate()
 
 def init_extensions(app):
