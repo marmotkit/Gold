@@ -20,16 +20,17 @@ class Participant(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     tournament_id = db.Column(db.Integer, db.ForeignKey('tournaments.id'), nullable=False)
     name = db.Column(db.String(100), nullable=False)
-    gender = db.Column(db.String(1))
+    gender = db.Column(db.String(1))  # 'M' 或 'F'
     handicap = db.Column(db.Float)
-    member_number = db.Column(db.String(50))
-    registration_number = db.Column(db.String(50))
-    pre_group_code = db.Column(db.String(50))  # 預分組代碼
-    group_code = db.Column(db.String(50))
+    member_id = db.Column(db.String(20))  # 添加會員編號欄位
+    member_number = db.Column(db.String(20))
+    registration_number = db.Column(db.String(20))
+    pre_group_code = db.Column(db.String(20))
+    group_code = db.Column(db.String(20))
     group_number = db.Column(db.Integer)
     notes = db.Column(db.Text)
     display_order = db.Column(db.Integer)
-    check_in_status = db.Column(db.String(20), default='not_checked_in')
+    check_in_status = db.Column(db.Boolean, default=False)
     check_in_time = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -38,20 +39,15 @@ class Participant(db.Model):
         return {
             'id': self.id,
             'tournament_id': self.tournament_id,
+            'registration_number': self.registration_number,
             'name': self.name,
             'gender': self.gender,
             'handicap': self.handicap,
-            'member_number': self.member_number,
-            'registration_number': self.registration_number,
-            'pre_group_code': self.pre_group_code,
             'group_code': self.group_code,
-            'group_number': self.group_number,
-            'notes': self.notes,
             'display_order': self.display_order,
-            'check_in_status': self.check_in_status,
-            'check_in_time': self.check_in_time.isoformat() if self.check_in_time else None,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'pre_group_code': self.pre_group_code,
+            'notes': self.notes,
+            'member_id': self.member_id
         }
 
     def __repr__(self):

@@ -312,13 +312,15 @@ def import_participants(tournament_id):
                     'name': name,
                     'gender': gender,
                     'handicap': handicap,
-                    'tournament_id': tournament_id
+                    'tournament_id': tournament_id,
+                    'registration_number': f'A{index+1:02d}',
+                    'display_order': index
                 }
                 
                 # 如果有會員編號欄位
                 if '會員編號' in df.columns:
                     member_id = str(row['會員編號']).strip() if pd.notna(row['會員編號']) else None
-                    participant_data['member_id'] = member_id
+                    participant_data['member_number'] = member_id  # 使用 member_number 而不是 member_id
 
                 participants_data.append(participant_data)
                 
