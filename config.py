@@ -21,12 +21,14 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
-    if SQLALCHEMY_DATABASE_URI:
-        if SQLALCHEMY_DATABASE_URI.startswith('postgres://'):
-            SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace('postgres://', 'postgresql://', 1)
-        logger.info(f"使用數據庫 URL: {SQLALCHEMY_DATABASE_URI}")
-    else:
+    if not SQLALCHEMY_DATABASE_URI:
         raise ValueError("DATABASE_URL environment variable is not set")
+        
+    # 處理 Postgres URL
+    if SQLALCHEMY_DATABASE_URI.startswith('postgres://'):
+        SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace('postgres://', 'postgresql://', 1)
+    
+    logger.info(f"使用數據庫 URL: {SQLALCHEMY_DATABASE_URI}")
     
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_size': 5,
