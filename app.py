@@ -122,8 +122,7 @@ CORS(app, resources={
     r"/*": {
         "origins": ["https://gold-1-ccpj.onrender.com"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type"],
-        "expose_headers": ["Content-Type"],
+        "allow_headers": ["Content-Type", "Accept"],
         "supports_credentials": True,
         "max_age": 3600
     }
@@ -131,15 +130,26 @@ CORS(app, resources={
 
 @app.after_request
 def after_request(response):
-    # 移除任何可能存在的舊 header
-    if 'Access-Control-Allow-Origin' in response.headers:
-        del response.headers['Access-Control-Allow-Origin']
-        
-    response.headers.add('Access-Control-Allow-Origin', 'https://gold-1-ccpj.onrender.com')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-    response.headers.add('Access-Control-Allow-Credentials', 'true')
-    response.headers.add('Access-Control-Max-Age', '3600')
+    # 移除所有現有的 CORS headers
+    headers_to_remove = [
+        'Access-Control-Allow-Origin',
+        'Access-Control-Allow-Methods',
+        'Access-Control-Allow-Headers',
+        'Access-Control-Allow-Credentials',
+        'Access-Control-Max-Age'
+    ]
+    
+    for header in headers_to_remove:
+        if header in response.headers:
+            del response.headers[header]
+    
+    # 添加新的 CORS headers
+    response.headers['Access-Control-Allow-Origin'] = 'https://gold-1-ccpj.onrender.com'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    response.headers['Access-Control-Max-Age'] = '3600'
+    
     return response
 
 # 健康檢查端點
