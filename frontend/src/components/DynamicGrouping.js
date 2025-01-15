@@ -24,45 +24,29 @@ import { buildApiUrl } from '../config';
 
 function ParticipantCard({ participant, onDelete, onDragStart, onDragEnd, isDragging, isOverflow, isMoved }) {
   return (
-    <Box 
-      sx={{ 
-        display: 'flex', 
-        flexDirection: 'row',
+    <Box
+      sx={{
+        display: 'flex',
         alignItems: 'center',
-        p: 0.5,
-        opacity: isDragging ? 0.5 : 1,
+        padding: '8px',
+        marginBottom: '4px',
+        backgroundColor: participant.gender === 'F' ? '#ffebee' : 'white',
+        border: '1px solid #ccc',
+        borderRadius: '4px',
         cursor: 'move',
-        '&:hover': {
-          bgcolor: 'action.hover'
-        },
-        ...(isOverflow && {
-          backgroundColor: '#fff3e0',
-          border: '1px solid #ffe0b2',
-          borderRadius: '4px'
-        }),
-        ...(isMoved && {
-          backgroundColor: '#fff9c4',
-          border: '1px solid #fff59d',
-          borderRadius: '4px'
-        }),
-        fontSize: '0.85rem',
-        minHeight: '32px'
+        opacity: isDragging ? 0.5 : 1,
       }}
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
     >
-      <Typography variant="body2" sx={{ flexGrow: 1, fontSize: 'inherit' }}>
+      {participant.gender === 'F' ? <FemaleIcon color="secondary" /> : <MaleIcon color="primary" />}
+      <Typography sx={{ marginLeft: '8px', flex: 1 }}>
         {participant.name}
+        <Typography variant="caption" sx={{ marginLeft: '8px', color: 'text.secondary' }}>
+          ({participant.handicap || 'N/A'})
+        </Typography>
       </Typography>
-      {participant.gender === 'M' ? (
-        <MaleIcon sx={{ fontSize: '1rem', color: 'primary.main' }} />
-      ) : (
-        <FemaleIcon sx={{ fontSize: '1rem', color: 'error.main' }} />
-      )}
-      <IconButton size="small" onClick={onDelete} sx={{ ml: 0.5 }}>
-        <DeleteIcon sx={{ fontSize: '1rem' }} />
-      </IconButton>
     </Box>
   );
 }

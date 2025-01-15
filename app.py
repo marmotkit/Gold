@@ -1040,103 +1040,91 @@ def export_groups_diagram(tournament_id):
             return jsonify({'error': '沒有已分組的參賽者'}), 400
 
         # 生成 HTML
-        html = '''
+        html = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="UTF-8">
-            <title>分組圖</title>
+            <title>{tournament.name} - 分組圖</title>
             <style>
-                body { 
-                    font-family: Arial, "Microsoft JhengHei", sans-serif; 
-                    padding: 20px;
-                    background-color: #f5f5f5;
-                }
-                .group-container {
+                .group-container {{
                     display: flex;
                     flex-wrap: wrap;
                     gap: 20px;
-                    margin-bottom: 20px;
-                }
-                .group-card {
-                    background: white;
+                    padding: 20px;
+                }}
+                .group-card {{
+                    border: 1px solid #ccc;
                     border-radius: 8px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                    padding: 16px;
-                    width: 300px;
-                }
-                .group-header {
-                    margin-bottom: 16px;
-                    color: #1976d2;
-                    font-size: 1.2em;
+                    padding: 15px;
+                    width: 200px;
+                }}
+                .group-title {{
                     font-weight: bold;
-                }
-                .group-code {
-                    color: #666;
-                    font-size: 0.9em;
-                }
-                .participant {
+                    margin-bottom: 10px;
+                    font-size: 16px;
+                }}
+                .participant {{
                     display: flex;
                     align-items: center;
-                    padding: 8px 0;
-                    border-bottom: 1px solid #eee;
-                }
-                .participant:last-child {
-                    border-bottom: none;
-                }
-                .gender-icon {
-                    margin: 0 8px;
-                    color: #2196f3;
-                }
-                .gender-icon.female {
-                    color: #f06292;
-                }
-                .handicap {
-                    margin-left: auto;
-                    color: #666;
-                }
-                .drag-handle {
-                    color: #ccc;
+                    margin: 5px 0;
+                    padding: 5px;
+                    border-radius: 4px;
+                }}
+                .participant.female {{
+                    background-color: #ffebee;
+                }}
+                .gender-icon {{
                     margin-right: 8px;
-                }
+                    font-size: 20px;
+                }}
+                .female-icon {{
+                    color: #e91e63;
+                }}
+                .male-icon {{
+                    color: #2196f3;
+                }}
+                .handicap {{
+                    color: #666;
+                    font-size: 12px;
+                    margin-left: 5px;
+                }}
             </style>
         </head>
         <body>
+            <h1 style="text-align: center;">{tournament.name} - 分組表</h1>
+            <p style="text-align: right;">匯出日期: {datetime.now().strftime('%Y/%m/%d')}</p>
             <div class="group-container">
-        '''
-
-        # 添加每個分組的卡片
-        for group_code in sorted(groups.keys(), key=lambda x: int(x)):
-            group = groups[group_code]
-            html += f'''
+        """
+        
+        # 添加分組資料
+        for group in groups:
+            html += f"""
                 <div class="group-card">
-                    <div class="group-header">
-                        第 {group_code} 組 {len(group)} 人
-                        <div class="group-code">預分組: G{int(group_code):02d}</div>
-                    </div>
-            '''
+                    <div class="group-title">第 {group['id']} 組 ({len(group['participants'])} 人)</div>
+            """
             
-            # 添加組內的參賽者
-            for p in group:
-                gender_icon = '♀' if p.gender == "F" else '♂'
-                gender_class = 'female' if p.gender == "F" else ''
-                html += f'''
-                    <div class="participant">
-                        <span class="drag-handle">≡</span>
-                        <span>{p.name}</span>
-                        <span class="gender-icon {gender_class}">{gender_icon}</span>
-                        <span class="handicap">差點: {p.handicap}</span>
+            for p in group['participants']:
+                gender_icon = '♀️' if p['gender'] == 'F' else '♂️'
+                gender_class = 'female' if p['gender'] == 'F' else 'male'
+                icon_class = 'female-icon' if p['gender'] == 'F' else 'male-icon'
+                
+                html += f"""
+                    <div class="participant {gender_class}">
+                        <span class="gender-icon {icon_class}">{gender_icon}</span>
+                        {p['name']}
+                        <span class="handicap">({p['handicap'] or 'N/A'})</span>
                     </div>
-                '''
+                """
             
-            html += '</div>'
-
-        html += '''
+            html += "</div>"
+        
+        html += """
             </div>
         </body>
         </html>
-        '''
-
+        """
+        
         # 創建一個臨時文件來保存 HTML
         with tempfile.NamedTemporaryFile(suffix='.html', delete=False, mode='w', encoding='utf-8') as f:
             f.write(html)
