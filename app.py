@@ -1009,35 +1009,20 @@ def export_groups(tournament_id):
 @app.route('/tournaments/<int:tournament_id>/export_groups_diagram', methods=['GET'])
 def export_groups_diagram(tournament_id):
     try:
-        print('================== 請求開始 ==================')
-        print(f'請求路徑: {request.path}')
-        print(f'請求方法: {request.method}')
-        print(f'請求來源: {request.headers.get("Origin")}')
-        print(f'請求頭部:')
-        for name, value in request.headers.items():
-            print(f'  {name}: {value}')
-        print('============================================')
-        
         # 獲取賽事資訊
         tournament = Tournament.query.get_or_404(tournament_id)
         
-        # 獲取所有參賽者並按分組和顯示順序排序
-        participants = Participant.query.filter_by(tournament_id=tournament_id).order_by(
-            func.cast(Participant.group_code, db.Integer).asc(),
-            Participant.display_order.asc(),
-            Participant.registration_number.asc()
-        ).all()
-
-        # 按組別分組
+        # 獲取分組資料
+        participants = Participant.query.filter_by(tournament_id=tournament_id)\
+            .order_by(Participant.group_code.asc(), Participant.display_order.asc()).all()
+            
+        # 按組別整理參賽者
         groups = {}
         for p in participants:
-            if p.group_code and p.group_code != '未分組':
+            if p.group_code:
                 if p.group_code not in groups:
                     groups[p.group_code] = []
                 groups[p.group_code].append(p)
-
-        if not groups:
-            return jsonify({'error': '沒有已分組的參賽者'}), 400
 
         # 生成 HTML
         html = f"""
@@ -1047,8 +1032,10 @@ def export_groups_diagram(tournament_id):
             <meta charset="UTF-8">
             <title>{tournament.name} - 分組表</title>
             <style>
+                @page {{ size: A4; margin: 1cm; }}
                 body {{
                     font-family: Arial, "Microsoft JhengHei", sans-serif;
+                    margin: 0;
                     padding: 20px;
                 }}
                 .header {{
@@ -1063,22 +1050,22 @@ def export_groups_diagram(tournament_id):
                 .group-container {{
                     display: grid;
                     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-                    gap: 20px;
-                    padding: 10px;
+                    gap: 15px;
                 }}
                 .group-card {{
                     border: 1px solid #ddd;
                     border-radius: 8px;
                     padding: 15px;
-                    background-color: #f8f9fa;
+                    background-color: #fff;
+                    page-break-inside: avoid;
                 }}
                 .group-title {{
                     font-size: 18px;
                     font-weight: bold;
                     margin-bottom: 10px;
-                    color: #2196f3;
-                    border-bottom: 2px solid #2196f3;
                     padding-bottom: 5px;
+                    border-bottom: 2px solid #2196f3;
+                    color: #2196f3;
                 }}
                 .participant {{
                     display: flex;
@@ -1086,36 +1073,38 @@ def export_groups_diagram(tournament_id):
                     padding: 8px;
                     margin: 5px 0;
                     border-radius: 4px;
-                    background-color: white;
+                    background-color: #f8f9fa;
                 }}
                 .participant.female {{
                     background-color: #fce4ec;
                 }}
                 .gender-icon {{
-                    font-size: 20px;
+                    width: 24px;
+                    height: 24px;
                     margin-right: 10px;
-                    font-weight: bold;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 18px;
                 }}
-                .gender-icon.male {{
+                .male-icon {{
                     color: #2196f3;
                 }}
-                .gender-icon.female {{
+                .female-icon {{
                     color: #e91e63;
                 }}
                 .participant-info {{
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
                     flex: 1;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }}
+                .name {{
+                    font-weight: bold;
                 }}
                 .handicap {{
                     color: #666;
                     margin-left: 10px;
-                }}
-                @media print {{
-                    .group-card {{
-                        break-inside: avoid;
-                    }}
                 }}
             </style>
         </head>
@@ -1128,24 +1117,26 @@ def export_groups_diagram(tournament_id):
             </div>
             <div class="group-container">
         """
-        
+
         # 添加分組資料
-        for group in groups:
+        for group_code in sorted(groups.keys(), key=lambda x: int(x) if x.isdigit() else float('inf')):
+            group = groups[group_code]
             html += f"""
                 <div class="group-card">
-                    <div class="group-title">第 {group['id']} 組 ({len(group['participants'])} 人)</div>
+                    <div class="group-title">第 {group_code} 組 ({len(group)} 人)</div>
             """
             
-            for p in group['participants']:
-                gender_icon = '👩' if p['gender'] == 'F' else '👨'
-                gender_class = 'female' if p['gender'] == 'F' else 'male'
-                handicap_display = 'N/A' if p['handicap'] is None else p['handicap']
+            for p in group:
+                gender_class = 'female' if p.gender == 'F' else 'male'
+                gender_icon = '👩' if p.gender == 'F' else '👨'
+                icon_class = 'female-icon' if p.gender == 'F' else 'male-icon'
+                handicap_display = p.handicap if p.handicap is not None else 'N/A'
                 
                 html += f"""
                     <div class="participant {gender_class}">
-                        <span class="gender-icon {gender_class}">{gender_icon}</span>
+                        <span class="gender-icon {icon_class}">{gender_icon}</span>
                         <div class="participant-info">
-                            <span>{p['name']}</span>
+                            <span class="name">{p.name}</span>
                             <span class="handicap">差點: {handicap_display}</span>
                         </div>
                     </div>
@@ -1158,28 +1149,23 @@ def export_groups_diagram(tournament_id):
         </body>
         </html>
         """
-        
-        # 創建一個臨時文件來保存 HTML
+
+        # 創建臨時文件並返回
         with tempfile.NamedTemporaryFile(suffix='.html', delete=False, mode='w', encoding='utf-8') as f:
             f.write(html)
             temp_path = f.name
 
-        response = send_file(
+        return send_file(
             temp_path,
             mimetype='text/html',
             as_attachment=True,
-            download_name=f'{tournament.name}_分組圖.html'
+            download_name=f'{tournament.name}_分組表.html'
         )
 
-        # 設置 headers 避免快取
-        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
-        
-        return response
-
     except Exception as e:
-        print(f"匯出分組圖時發生錯誤：{str(e)}")
+        app.logger.error(f"匯出分組表時發生錯誤：{str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 # 儲存動態分組
