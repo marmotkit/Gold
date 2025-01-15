@@ -1,10 +1,5 @@
 const config = {
-    API_URL: process.env.NODE_ENV === 'production'
-        ? 'https://gold-v00p.onrender.com'
-        : 'http://localhost:8000'
+    API_URL: (process.env.REACT_APP_API_URL || 'http://localhost:8000').replace(/\/$/, '')
 };
-
-console.log('Current environment:', process.env.NODE_ENV);
-console.log('API URL:', config.API_URL);
 
 export default config;

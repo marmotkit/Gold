@@ -11,3 +11,4 @@ setuptools>=65.5.1
 wheel>=0.38.0
 Werkzeug==2.0.1
 SQLAlchemy==1.4.41
+psycopg2-binary==2.9.3
