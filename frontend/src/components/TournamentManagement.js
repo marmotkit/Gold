@@ -19,9 +19,7 @@ import {
   Alert,
   CircularProgress
 } from '@mui/material';
-import config from '../config';
-
-const API_URL = config.API_URL;
+import { buildApiUrl } from '../config';
 
 function TournamentManagement({ onTournamentSelect }) {
   const [tournaments, setTournaments] = useState([]);
@@ -45,8 +43,8 @@ function TournamentManagement({ onTournamentSelect }) {
 
   const loadTournaments = async () => {
     try {
-        console.log('Fetching from:', `${config.API_URL}tournaments`);
-        const response = await fetch(`${config.API_URL}tournaments`, {
+        console.log('Fetching from:', `${buildApiUrl('/tournaments')}`);
+        const response = await fetch(buildApiUrl('/tournaments'), {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
@@ -96,7 +94,7 @@ function TournamentManagement({ onTournamentSelect }) {
         setError(null);
 
         const response = await fetchWithTimeout(
-          `${API_URL}tournaments`,
+          buildApiUrl('/tournaments'),
           {
             method: editingTournament ? 'PUT' : 'POST',
             headers: {
@@ -205,7 +203,7 @@ function TournamentManagement({ onTournamentSelect }) {
         setError(null);
 
         const response = await fetchWithTimeout(
-          `${API_URL}tournaments/${id}`,
+          buildApiUrl(`/tournaments/${id}`),
           {
             method: 'DELETE',
             headers: {
