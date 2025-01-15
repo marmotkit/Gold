@@ -48,7 +48,7 @@ from extensions import db, init_extensions
 from models import Tournament, Participant
 import re
 import tempfile
-from flask_migrate import Migrate
+from flask_migrate import Migrate, upgrade
 import logging
 
 # 配置日誌
@@ -1221,13 +1221,18 @@ def get_groups(tournament_id):
         app.logger.error(f"Error getting groups: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# 在應用啟動時初始化數據庫
+# 初始化遷移
+migrate = Migrate(app, db)
+
+# 在應用啟動時執行遷移
 with app.app_context():
     try:
-        db.create_all()
-        print("數據庫表已成功創建")
+        upgrade()
+        print("數據庫遷移完成")
     except Exception as e:
-        print(f"創建數據庫表時出錯: {str(e)}")
+        print(f"數據庫遷移失敗: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
 
 if __name__ == '__main__':
     app.logger.info('應用啟動中...')
