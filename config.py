@@ -4,6 +4,7 @@ from datetime import timedelta
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ECHO = True
     CORS_HEADERS = 'Content-Type'
 
 class DevelopmentConfig(Config):
