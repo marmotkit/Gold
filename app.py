@@ -1266,41 +1266,67 @@ def favicon():
 @app.route('/tournaments/<int:tournament_id>/groups', methods=['GET'])
 def get_groups(tournament_id):
     try:
+        app.logger.info(f"開始獲取賽事 {tournament_id} 的分組資料")
+        
         # 檢查賽事是否存在
         tournament = Tournament.query.get(tournament_id)
         if not tournament:
-            return jsonify({"error": "Tournament not found"}), 404
+            app.logger.error(f"找不到賽事 ID: {tournament_id}")
+            return jsonify({"error": "找不到指定的賽事"}), 404
 
-        # 獲取該賽事的所有參賽者，添加排序
+        # 獲取該賽事的所有參賽者
         participants = Participant.query.filter_by(tournament_id=tournament_id)\
-            .order_by(Participant.group_code.asc(), Participant.display_order.asc())\
-            .all()
+            .order_by(
+                Participant.group_code.asc(), 
+                Participant.display_order.asc()
+            ).all()
+        
+        app.logger.info(f"找到 {len(participants)} 名參賽者")
         
         # 按照組別分組
         groups = {}
         for participant in participants:
-            if participant.group_code:  # 確保 group_code 存在
-                group_id = str(participant.group_code)
-                group_name = f"第 {participant.group_code} 組"
-                if group_name not in groups:
-                    groups[group_name] = {
-                        "id": group_id,
-                        "name": group_name,
-                        "participants": []
+            try:
+                if participant.group_code:  # 確保 group_code 存在
+                    group_id = str(participant.group_code)
+                    group_name = f"第 {participant.group_code} 組"
+                    
+                    # 初始化組別
+                    if group_name not in groups:
+                        groups[group_name] = {
+                            "id": group_id,
+                            "name": group_name,
+                            "participants": []
+                        }
+                    
+                    # 添加參賽者資料
+                    participant_data = {
+                        "id": participant.id,
+                        "name": participant.name,
+                        "gender": participant.gender,
+                        "registration_number": participant.registration_number,
+                        "handicap": participant.handicap,
+                        "member_id": participant.member_id,
+                        "pre_group_code": participant.pre_group_code
                     }
-                groups[group_name]["participants"].append({
-                    "id": participant.id,
-                    "name": participant.name,
-                    "gender": participant.gender,
-                    "registration_number": participant.registration_number,
-                    "handicap": participant.handicap,
-                    "member_id": participant.member_id
-                })
+                    groups[group_name]["participants"].append(participant_data)
+                    
+            except Exception as e:
+                app.logger.error(f"處理參賽者 {participant.id} 時發生錯誤: {str(e)}")
+                continue
 
         # 轉換為列表格式並排序
-        groups_list = sorted(list(groups.values()), key=lambda x: int(x["id"]))
+        try:
+            groups_list = sorted(
+                list(groups.values()), 
+                key=lambda x: int(x["id"]) if x["id"].isdigit() else float('inf')
+            )
+            app.logger.info(f"成功創建 {len(groups_list)} 個分組")
+            
+        except Exception as e:
+            app.logger.error(f"排序分組時發生錯誤: {str(e)}")
+            return jsonify({"error": f"排序分組時發生錯誤: {str(e)}"}), 500
 
-        app.logger.info(f"返回分組數據: {groups_list}")
         return jsonify(groups_list)
 
     except Exception as e:
