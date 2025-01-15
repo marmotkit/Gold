@@ -588,55 +588,80 @@ def update_check_in_status(tournament_id, participant_id):
 @app.route('/tournaments/<int:tournament_id>/auto-group', methods=['POST'])
 def auto_group(tournament_id):
     try:
-        print('================== 請求開始 ==================')
-        print(f'請求路徑: {request.path}')
-        print(f'請求方法: {request.method}')
-        print(f'請求來源: {request.headers.get("Origin")}')
-        print(f'請求頭部:')
-        for name, value in request.headers.items():
-            print(f'  {name}: {value}')
-        print('============================================')
-        
-        # 獲取賽事
-        tournament = Tournament.query.get(tournament_id)
-        if not tournament:
-            return jsonify({'error': '找不到指定的賽事'}), 404
-
         # 獲取所有參賽者
         participants = Participant.query.filter_by(tournament_id=tournament_id).all()
         if not participants:
             return jsonify({'error': '沒有參賽者可供分組'}), 400
 
-        # 先按預分組編號排序，再按差點排序
-        sorted_participants = sorted(participants, 
-            key=lambda p: (
-                p.pre_group_code if p.pre_group_code else 'Z999',  # 沒有預分組的排最後
-                float(p.handicap if p.handicap is not None else 999.0)
-            )
-        )
+        # 將參賽者分成兩類：有預分組和沒有預分組的
+        pre_grouped = {}  # 按預分組編號分類
+        ungrouped = []    # 沒有預分組的參賽者
 
-        # 計算每組人數（預設 4 人一組）
-        group_size = 4
-        total_groups = (len(sorted_participants) + group_size - 1) // group_size
+        for p in participants:
+            if p.pre_group_code:
+                if p.pre_group_code not in pre_grouped:
+                    pre_grouped[p.pre_group_code] = []
+                pre_grouped[p.pre_group_code].append(p)
+            else:
+                ungrouped.append(p)
 
-        # 進行分組
-        for i, participant in enumerate(sorted_participants):
-            group_number = (i // group_size) + 1
-            participant.group_code = str(group_number)
-            participant.display_order = i + 1
+        # 按差點排序沒有預分組的參賽者
+        ungrouped.sort(key=lambda p: float(p.handicap if p.handicap is not None else 999.0))
+
+        # 開始分組
+        group_number = 1
+        final_groups = []
+        
+        # 先處理預分組
+        for pre_code in sorted(pre_grouped.keys()):
+            group = pre_grouped[pre_code]
+            while len(group) > 0:
+                # 取出最多4人作為一組
+                current_group = group[:4]
+                group = group[4:]
+                
+                # 如果這組不足4人且還有未分組的人，從未分組的人中補充
+                while len(current_group) < 4 and ungrouped:
+                    current_group.append(ungrouped.pop(0))
+                
+                # 設置組別
+                for p in current_group:
+                    p.group_code = str(group_number)
+                
+                final_groups.append(current_group)
+                group_number += 1
+
+        # 處理剩下的未分組參賽者
+        while ungrouped:
+            current_group = ungrouped[:4]
+            ungrouped = ungrouped[4:]
+            
+            # 設置組別
+            for p in current_group:
+                p.group_code = str(group_number)
+            
+            final_groups.append(current_group)
+            group_number += 1
+
+        # 設置顯示順序
+        display_order = 1
+        for group in final_groups:
+            for p in group:
+                p.display_order = display_order
+                display_order += 1
 
         # 儲存變更
         db.session.commit()
 
         return jsonify({
             'message': '自動分組完成',
-            'total_groups': total_groups,
-            'total_participants': len(sorted_participants)
+            'total_groups': len(final_groups),
+            'total_participants': len(participants)
         })
 
     except Exception as e:
         db.session.rollback()
-        print('自動分組錯誤:', str(e))
+        app.logger.error(f"自動分組錯誤: {str(e)}")
         return jsonify({'error': '自動分組失敗：' + str(e)}), 500
 
 # 儲存分組
