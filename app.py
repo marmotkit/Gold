@@ -1159,12 +1159,19 @@ def export_groups_diagram(tournament_id):
             f.write(html)
             temp_path = f.name
 
-        return send_file(
+        response = send_file(
             temp_path,
             mimetype='text/html',
             as_attachment=True,
             download_name=f'{tournament.name}_分組表.html'
         )
+
+        # 設置 headers 避免快取
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        
+        return response
 
     except Exception as e:
         app.logger.error(f"匯出分組表時發生錯誤：{str(e)}")
