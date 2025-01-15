@@ -46,3 +46,4 @@ services:
 databases:
   - name: golf-db
     plan: free
+    ipAllowList: []  # 允許所有 IP 訪問
