@@ -68,7 +68,7 @@ function TournamentManagement({ onTournamentSelect }) {
     let retryCount = 0;
     const maxRetries = 3;
     const retryDelay = 1000;
-    const timeout = 5000;
+    const timeout = 15000;
 
     const fetchWithTimeout = async (url, options, timeout) => {
       const controller = new AbortController();
@@ -77,7 +77,14 @@ function TournamentManagement({ onTournamentSelect }) {
       try {
         const response = await fetch(url, {
           ...options,
-          signal: controller.signal
+          signal: controller.signal,
+          headers: {
+            ...options.headers,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          mode: 'cors',
+          credentials: 'include'
         });
         clearTimeout(id);
         return response;

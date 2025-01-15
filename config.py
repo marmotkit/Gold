@@ -36,12 +36,19 @@ class ProductionConfig(Config):
     logger.info(f"使用數據庫 URL: {SQLALCHEMY_DATABASE_URI}")
     
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_size': 5,
-        'max_overflow': 10,
-        'pool_timeout': 30,
+        'pool_size': 10,
+        'max_overflow': 20,
+        'pool_timeout': 60,
         'pool_recycle': 1800,
         'pool_pre_ping': True,
-        'echo': True
+        'echo': True,
+        'connect_args': {
+            'connect_timeout': 10,
+            'keepalives': 1,
+            'keepalives_idle': 30,
+            'keepalives_interval': 10,
+            'keepalives_count': 5
+        }
     }
     CORS_ORIGINS = [
         'https://gold-1-ccpj.onrender.com',

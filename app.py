@@ -88,9 +88,23 @@ CORS(app, resources={
     r"/*": {
         "origins": config[config_name].CORS_ORIGINS,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": config[config_name].CORS_HEADERS
+        "allow_headers": ["Content-Type", "Authorization", "Content-Disposition"],
+        "expose_headers": ["Content-Disposition"],
+        "supports_credentials": True,
+        "max_age": 600
     }
 })
+
+# 添加全局錯誤處理
+@app.errorhandler(500)
+def internal_error(error):
+    app.logger.error(f'Server Error: {error}')
+    return jsonify(error=str(error)), 500
+
+@app.errorhandler(404)
+def not_found_error(error):
+    app.logger.error(f'Not Found: {error}')
+    return jsonify(error='Resource not found'), 404
 
 @app.after_request
 def after_request(response):
