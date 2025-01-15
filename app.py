@@ -1308,7 +1308,6 @@ def get_groups(tournament_id):
                         "gender": participant.gender,
                         "registration_number": participant.registration_number,
                         "handicap": participant.handicap,
-                        "member_id": participant.member_id,
                         "pre_group_code": participant.pre_group_code
                     }
                     groups[group_name]["participants"].append(participant_data)
@@ -1320,7 +1319,6 @@ def get_groups(tournament_id):
                         "gender": participant.gender,
                         "registration_number": participant.registration_number,
                         "handicap": participant.handicap,
-                        "member_id": participant.member_id,
                         "pre_group_code": participant.pre_group_code
                     })
                     
@@ -1360,17 +1358,30 @@ def get_groups(tournament_id):
 # 在應用啟動時執行遷移
 with app.app_context():
     try:
-        db.create_all()
-        print("數據庫表創建成功")
+        # 檢查是否已經存在 member_id 欄位
+        inspector = db.inspect(db.engine)
+        existing_columns = inspector.get_columns('participants')
+        has_member_id = any(col['name'] == 'member_id' for col in existing_columns)
+        
+        if not has_member_id:
+            app.logger.info("開始添加 member_id 欄位...")
+            
+            # 創建臨時表並複製數據
+            db.session.execute('''
+                ALTER TABLE participants 
+                ADD COLUMN IF NOT EXISTS member_id VARCHAR(20)
+            ''')
+            
+            # 提交更改
+            db.session.commit()
+            app.logger.info("member_id 欄位添加成功")
+        else:
+            app.logger.info("member_id 欄位已存在")
+            
     except Exception as e:
-        print(f"創建數據庫表時出錯: {str(e)}")
-        try:
-            upgrade()
-            print("數據庫遷移成功")
-        except Exception as e:
-            print(f"數據庫遷移失敗: {str(e)}")
-            import traceback
-            print(traceback.format_exc())
+        app.logger.error(f"數據庫更新失敗: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
 
 if __name__ == '__main__':
     app.logger.info('應用啟動中...')
