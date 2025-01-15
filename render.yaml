@@ -13,6 +13,8 @@ services:
         fromDatabase:
           name: golf-db
           property: connectionString
+      - key: API_URL
+        value: https://gold-v00p.onrender.com
     headers:
       - path: /*
         name: Access-Control-Allow-Origin
