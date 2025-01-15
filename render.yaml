@@ -7,43 +7,14 @@ services:
     envVars:
       - key: FLASK_ENV
         value: production
-      - key: SECRET_KEY
-        value: 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b
       - key: DATABASE_URL
         fromDatabase:
           name: golf-db
           property: connectionString
-      - key: API_URL
-        value: https://gold-v00p.onrender.com
-    headers:
-      - path: /*
-        name: Access-Control-Allow-Origin
-        value: https://gold-1-ccpj.onrender.com
-      - path: /*
-        name: Access-Control-Allow-Methods
-        value: GET,POST,PUT,DELETE,OPTIONS
-      - path: /*
-        name: Access-Control-Allow-Headers
-        value: Content-Type,Accept,Authorization
-      - path: /*
-        name: Access-Control-Allow-Credentials
-        value: "true"
-      - path: /*
-        name: Access-Control-Max-Age
-        value: "3600"
-    healthCheckPath: /health
-    healthCheckTimeout: 30
-    autoDeploy: true
-    numInstances: 1
-    scaling:
-      minInstances: 1
-      maxInstances: 1
-    disk:
-      name: data
-      mountPath: /data
-      sizeGB: 1
+      - key: SQLALCHEMY_TRACK_MODIFICATIONS
+        value: "false"
 
 databases:
   - name: golf-db
     plan: free
-    ipAllowList: []  # 允許所有 IP 訪問
+    ipAllowList: []

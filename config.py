@@ -24,8 +24,10 @@ class ProductionConfig(Config):
         print(f"使用數據庫 URL: {SQLALCHEMY_DATABASE_URI}")
     
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_size': 10,
-        'max_overflow': 20,
+        'pool_size': 5,
+        'max_overflow': 10,
+        'pool_timeout': 30,
+        'pool_recycle': 1800,
         'pool_pre_ping': True
     }
 
