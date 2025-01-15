@@ -244,106 +244,111 @@ def get_tournament_participants(tournament_id):
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
-# 匯入參賽者
+def parse_handicap(value):
+    """解析差點值"""
+    if pd.isna(value):
+        return None
+    
+    try:
+        # 如果是數字，直接返回
+        if isinstance(value, (int, float)):
+            return float(value)
+        
+        # 如果是字串，清理並轉換
+        if isinstance(value, str):
+            # 移除所有空白字符
+            value = re.sub(r'\s+', '', value)
+            # 如果是空字串，返回 None
+            if not value:
+                return None
+            # 轉換為浮點數
+            return float(value)
+        
+        return None
+    except (ValueError, TypeError):
+        return None
+
 @app.route('/tournaments/<int:tournament_id>/participants/import', methods=['POST'])
 def import_participants(tournament_id):
     try:
-        print('================== 請求開始 ==================')
-        print(f'請求路徑: {request.path}')
-        print(f'請求方法: {request.method}')
-        print(f'請求來源: {request.headers.get("Origin")}')
-        print(f'請求頭部:')
-        for name, value in request.headers.items():
-            print(f'  {name}: {value}')
-        print('============================================')
+        app.logger.info(f"開始匯入賽事 {tournament_id} 的參賽者")
         
         if 'file' not in request.files:
-            return jsonify({'error': '未找到檔案'}), 400
+            app.logger.error("未找到上傳的檔案")
+            return jsonify({'error': '未找到上傳的檔案'}), 400
             
         file = request.files['file']
-        if file.filename == '':
-            return jsonify({'error': '未選擇檔案'}), 400
-            
-        if not file.filename.endswith('.xlsx'):
-            return jsonify({'error': '請上傳 Excel 檔案 (.xlsx)'}), 400
+        if not file:
+            app.logger.error("檔案為空")
+            return jsonify({'error': '檔案為空'}), 400
 
         # 讀取 Excel 檔案
-        df = pd.read_excel(file)
-        print(f"Excel 欄位：{df.columns.tolist()}")
-        print("Excel 資料預覽：")
-        print(df.head())
-        
+        try:
+            df = pd.read_excel(file)
+            app.logger.info(f"成功讀取 Excel 檔案，共 {len(df)} 行")
+        except Exception as e:
+            app.logger.error(f"讀取 Excel 檔案失敗: {str(e)}")
+            return jsonify({'error': f'讀取 Excel 檔案失敗: {str(e)}'}), 400
+
         # 檢查必要欄位
-        required_columns = ['姓名', '差點']
+        required_columns = ['姓名', '性別', '差點']
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
-            return jsonify({'error': f'缺少必要欄位：{", ".join(missing_columns)}'}), 400
+            app.logger.error(f"缺少必要欄位: {missing_columns}")
+            return jsonify({'error': f'缺少必要欄位: {missing_columns}'}), 400
 
-        # 清除既有的參賽者資料
-        Participant.query.filter_by(tournament_id=tournament_id).delete()
-        
-        # 處理每一行資料
+        # 清理和轉換資料
         participants_data = []
         for index, row in df.iterrows():
-            # 清理並驗證資料
-            name = clean_text(str(row['姓名']))
-            member_id = clean_text(str(row['會員編號'])) if '會員編號' in df.columns else None
-            handicap = parse_handicap(row['差點'])
-            
-            # 處理性別
-            gender = None
-            if member_id:
-                if member_id.startswith('F'):
-                    gender = 'F'
-                elif member_id.startswith('M'):
-                    gender = 'M'
-            
-            if not gender and '性別' in df.columns:
-                gender_value = str(row['性別']).strip().upper()
-                if gender_value in ['F', 'M']:
-                    gender = gender_value
-                elif gender_value == '女':
-                    gender = 'F'
-                elif gender_value == '男':
-                    gender = 'M'
-            
-            # 處理預分組編號
-            pre_group_code = clean_pre_group_code(row['預分組編號']) if '預分組編號' in df.columns else None
-            
-            if not name:
-                continue
+            try:
+                name = str(row['姓名']).strip()
+                gender = 'F' if str(row['性別']).strip().upper() in ['F', '女'] else 'M'
+                handicap = parse_handicap(row['差點'])
                 
-            participants_data.append({
-                'name': name,
-                'member_id': member_id,
-                'gender': gender,
-                'handicap': handicap,
-                'pre_group_code': pre_group_code
+                if not name:  # 跳過沒有姓名的行
+                    continue
+                    
+                participant_data = {
+                    'name': name,
+                    'gender': gender,
+                    'handicap': handicap,
+                    'tournament_id': tournament_id
+                }
+                
+                # 如果有會員編號欄位
+                if '會員編號' in df.columns:
+                    member_id = str(row['會員編號']).strip() if pd.notna(row['會員編號']) else None
+                    participant_data['member_id'] = member_id
+
+                participants_data.append(participant_data)
+                
+            except Exception as e:
+                app.logger.error(f"處理第 {index+1} 行資料時發生錯誤: {str(e)}")
+                continue
+
+        # 批次新增參賽者
+        try:
+            for data in participants_data:
+                participant = Participant(**data)
+                db.session.add(participant)
+            
+            db.session.commit()
+            app.logger.info(f"成功匯入 {len(participants_data)} 位參賽者")
+            
+            return jsonify({
+                'message': f'成功匯入 {len(participants_data)} 位參賽者',
+                'count': len(participants_data)
             })
             
-        # 匯入新的參賽者資料
-        for participant_data in participants_data:
-            # 建立參賽者
-            participant = Participant(
-                tournament_id=tournament_id,
-                name=participant_data['name'],
-                gender=participant_data['gender'],
-                handicap=participant_data['handicap'],
-                member_number=participant_data['member_id'],
-                registration_number=f'A{index+1:02d}',
-                pre_group_code=participant_data['pre_group_code'],
-                display_order=index
-            )
-            db.session.add(participant)
-        
-        db.session.commit()
-        return jsonify({'message': '匯入成功'}), 200
-        
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"儲存資料時發生錯誤: {str(e)}")
+            return jsonify({'error': f'儲存資料時發生錯誤: {str(e)}'}), 500
+
     except Exception as e:
-        db.session.rollback()
-        print(f"匯入參賽者時發生錯誤：{str(e)}")
+        app.logger.error(f"匯入參賽者時發生錯誤: {str(e)}")
         import traceback
-        print(traceback.format_exc())
+        app.logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 # 獲取下一個報名序號
