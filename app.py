@@ -968,170 +968,107 @@ def export_groups(tournament_id):
 @app.route('/tournaments/<int:tournament_id>/export_groups_diagram', methods=['GET'])
 def export_groups_diagram(tournament_id):
     try:
-        # 獲取賽事資訊
+        app.logger.info(f"開始匯出賽事 {tournament_id} 的分組表")
+        
+        # 檢查賽事是否存在
         tournament = Tournament.query.get_or_404(tournament_id)
         
-        # 獲取分組資料
+        # 獲取所有參賽者並按組別排序
         participants = Participant.query.filter_by(tournament_id=tournament_id)\
-            .order_by(func.cast(Participant.group_code, db.Integer).asc(), 
-                     Participant.display_order.asc()).all()
+            .order_by(
+                func.cast(Participant.group_code, db.Integer).asc(),
+                Participant.display_order.asc()
+            ).all()
             
-        # 按組別整理參賽者
-        groups = {}
-        for p in participants:
-            if p.group_code:
-                if p.group_code not in groups:
-                    groups[p.group_code] = []
-                groups[p.group_code].append({
-                    'name': p.name,
-                    'gender': p.gender,
-                    'handicap': p.handicap if p.handicap is not None else 'N/A'
-                })
-
-        # 生成 HTML
-        html = f"""
+        # 生成 HTML 內容
+        html_content = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="UTF-8">
             <title>{tournament.name} - 分組表</title>
             <style>
-                @page {{ size: A4; margin: 1cm; }}
-                body {{
-                    font-family: Arial, "Microsoft JhengHei", sans-serif;
-                    margin: 0;
-                    padding: 20px;
-                }}
-                .header {{
-                    text-align: center;
-                    margin-bottom: 20px;
-                }}
-                .date {{
-                    text-align: right;
-                    color: #666;
-                    margin-bottom: 20px;
-                }}
-                .group-container {{
-                    display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-                    gap: 15px;
+                body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                .title {{ text-align: center; margin-bottom: 20px; }}
+                .date {{ text-align: right; margin-bottom: 20px; color: #666; }}
+                .groups-container {{ 
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 20px;
+                    justify-content: flex-start;
                 }}
                 .group-card {{
-                    border: 1px solid #ddd;
-                    border-radius: 8px;
-                    padding: 15px;
-                    background-color: #fff;
-                    page-break-inside: avoid;
+                    border: 1px solid #ccc;
+                    border-radius: 5px;
+                    padding: 10px;
+                    width: 200px;
+                    background-color: #f9f9f9;
                 }}
                 .group-title {{
-                    font-size: 18px;
                     font-weight: bold;
                     margin-bottom: 10px;
                     padding-bottom: 5px;
-                    border-bottom: 2px solid #2196f3;
-                    color: #2196f3;
+                    border-bottom: 1px solid #eee;
                 }}
                 .participant {{
-                    display: flex;
-                    align-items: center;
-                    padding: 8px;
                     margin: 5px 0;
-                    border-radius: 4px;
-                    background-color: #f8f9fa;
+                    padding: 5px;
                 }}
-                .participant.female {{
-                    background-color: #fce4ec;
-                }}
-                .gender-icon {{
-                    width: 24px;
-                    height: 24px;
-                    margin-right: 10px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 18px;
-                }}
-                .male-icon {{
-                    color: #2196f3;
-                }}
-                .female-icon {{
-                    color: #e91e63;
-                }}
-                .participant-info {{
-                    flex: 1;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }}
-                .name {{
-                    font-weight: bold;
+                .female {{
+                    background-color: #ffe6e6;
                 }}
                 .handicap {{
                     color: #666;
-                    margin-left: 10px;
+                    font-size: 0.9em;
                 }}
             </style>
         </head>
         <body>
-            <div class="header">
-                <h1>{tournament.name} - 分組表</h1>
-            </div>
-            <div class="date">
-                匯出日期: {datetime.now().strftime('%Y/%m/%d')}
-            </div>
-            <div class="group-container">
+            <h1 class="title">{tournament.name} - 分組表</h1>
+            <div class="date">匯出日期: {datetime.now().strftime('%Y/%m/%d')}</div>
+            <div class="groups-container">
         """
-
-        # 添加分組資料
+        
+        # 按組別整理參賽者
+        groups = {}
+        for p in participants:
+            if p.group_code:
+                if p.group_code not in groups:
+                    groups[p.group_code] = []
+                groups[p.group_code].append(p)
+        
+        # 生成每個組別的 HTML
         for group_code in sorted(groups.keys(), key=lambda x: int(x) if x.isdigit() else float('inf')):
-            participants = groups[group_code]
-            html += f"""
+            html_content += f"""
                 <div class="group-card">
-                    <div class="group-title">第 {group_code} 組 ({len(participants)} 人)</div>
+                    <div class="group-title">第 {group_code} 組 ({len(groups[group_code])} 人)</div>
             """
             
-            for p in participants:
-                gender_class = 'female' if p['gender'] == 'F' else 'male'
-                gender_icon = '👩' if p['gender'] == 'F' else '👨'
-                icon_class = 'female-icon' if p['gender'] == 'F' else 'male-icon'
-                
-                html += f"""
+            for p in groups[group_code]:
+                gender_class = 'female' if p.gender == 'F' else ''
+                html_content += f"""
                     <div class="participant {gender_class}">
-                        <span class="gender-icon {icon_class}">{gender_icon}</span>
-                        <div class="participant-info">
-                            <span class="name">{p['name']}</span>
-                            <span class="handicap">差點: {p['handicap']}</span>
-                        </div>
+                        {p.name}
+                        <span class="handicap">({p.handicap})</span>
                     </div>
                 """
             
-            html += "</div>"
-
-        html += """
+            html_content += "</div>"
+        
+        html_content += """
             </div>
         </body>
         </html>
         """
-
-        # 創建臨時文件並返回
-        with tempfile.NamedTemporaryFile(suffix='.html', delete=False, mode='w', encoding='utf-8') as f:
-            f.write(html)
-            temp_path = f.name
-
-        response = send_file(
-            temp_path,
-            mimetype='text/html',
-            as_attachment=True,
-            download_name=f'{tournament.name}_分組表.html'
-        )
-
-        # 設置 headers 避免快取
-        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
         
+        # 創建回應
+        response = app.make_response(html_content)
+        response.headers['Content-Type'] = 'text/html; charset=utf-8'
+        response.headers['Content-Disposition'] = f'attachment; filename="{tournament.name}_分組表.html"'
+        
+        app.logger.info("分組表匯出成功")
         return response
-
+        
     except Exception as e:
         app.logger.error(f"匯出分組表時發生錯誤：{str(e)}")
         import traceback
