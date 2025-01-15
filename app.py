@@ -143,16 +143,14 @@ init_extensions(app)
 db.init_app(app)
 migrate = Migrate(app, db)
 
-# 配置 CORS
+# 初始化 CORS
 CORS(app, resources={
     r"/*": {
-        "origins": ["https://gold-1-ccpj.onrender.com"],
+        "origins": config[config_name].CORS_ORIGINS,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Accept"],
-        "supports_credentials": True,
-        "max_age": 3600
+        "allow_headers": config[config_name].CORS_HEADERS
     }
-}, add_headers=False)  # 禁止 Flask-CORS 自動添加 headers
+})
 
 @app.after_request
 def after_request(response):

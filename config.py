@@ -8,15 +8,20 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = True
-    CORS_HEADERS = 'Content-Type'
+    CORS_HEADERS = ['Content-Type', 'Authorization', 'Content-Disposition']
     SQLALCHEMY_ENGINE_OPTIONS = {
         'echo': True,
         'pool_pre_ping': True
     }
 
+    @staticmethod
+    def init_app(app):
+        pass
+
 class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///instance/golf.db'
+    CORS_ORIGINS = ['http://localhost:3000']
 
 class ProductionConfig(Config):
     DEBUG = True
@@ -38,6 +43,10 @@ class ProductionConfig(Config):
         'pool_pre_ping': True,
         'echo': True
     }
+    CORS_ORIGINS = [
+        'https://gold-1-ccpj.onrender.com',
+        'https://gold-v00p.onrender.com'
+    ]
 
 config = {
     'development': DevelopmentConfig,
