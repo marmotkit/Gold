@@ -6,6 +6,10 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = True
     CORS_HEADERS = 'Content-Type'
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'echo': True,
+        'pool_pre_ping': True
+    }
 
 class DevelopmentConfig(Config):
     DEBUG = True

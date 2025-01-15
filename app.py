@@ -49,6 +49,14 @@ from models import Tournament, Participant
 import re
 import tempfile
 from flask_migrate import Migrate
+import logging
+
+# 配置日誌
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s %(levelname)s: %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
 
 def parse_handicap(value):
     """解析差點值"""
@@ -166,7 +174,8 @@ def get_tournaments():
 def create_tournament():
     try:
         data = request.json
-        print(f"接收到的數據: {data}")
+        app.logger.info(f"接收到的數據: {data}")
+        app.logger.info(f"數據庫 URL: {app.config['SQLALCHEMY_DATABASE_URI']}")
         
         # 驗證必要字段
         if not data.get('name'):
@@ -177,8 +186,11 @@ def create_tournament():
         if data.get('date'):
             try:
                 date = datetime.strptime(data['date'], '%Y-%m-%d').date()
-            except ValueError:
+            except ValueError as e:
+                app.logger.error(f"日期解析錯誤: {str(e)}")
                 return jsonify({'error': '日期格式無效'}), 400
+        
+        app.logger.info(f"準備創建賽事: name={data['name']}, date={date}")
         
         # 創建賽事
         tournament = Tournament(
@@ -188,6 +200,7 @@ def create_tournament():
         
         db.session.add(tournament)
         db.session.commit()
+        app.logger.info(f"賽事創建成功: id={tournament.id}")
         
         return jsonify({
             'id': tournament.id,
@@ -197,9 +210,9 @@ def create_tournament():
         
     except Exception as e:
         db.session.rollback()
-        print(f"創建賽事時發生錯誤: {str(e)}")
+        app.logger.error(f"創建賽事時發生錯誤: {str(e)}")
         import traceback
-        print(traceback.format_exc())
+        app.logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 # 獲取賽事的參賽者列表
