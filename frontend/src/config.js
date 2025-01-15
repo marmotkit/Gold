@@ -1,11 +1,10 @@
-const config = {
-    API_URL: process.env.REACT_APP_API_URL || 'http://localhost:8000'
+const API_URL = process.env.REACT_APP_API_URL || 'https://gold-v00p.onrender.com';
+
+// 確保 URL 結尾沒有斜線
+export const getApiUrl = () => {
+    return API_URL.replace(/\/+$/, '');
 };
 
-// 確保 API_URL 以斜線結尾
-if (config.API_URL) {
-    config.API_URL = config.API_URL.replace(/\/+$/, '') + '/';
-}
-
-console.log('API URL:', config.API_URL);
-export default config;
+export default {
+    API_URL: getApiUrl()
+};

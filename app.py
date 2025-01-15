@@ -55,8 +55,13 @@ import logging
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s %(levelname)s: %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler('app.log')
+    ]
 )
+
+logger = logging.getLogger(__name__)
 
 def parse_handicap(value):
     """解析差點值"""
@@ -1206,18 +1211,20 @@ def get_groups(tournament_id):
         if not tournament:
             return jsonify({"error": "Tournament not found"}), 404
 
-        # 獲取該賽事的所有參賽者
-        participants = Participant.query.filter_by(tournament_id=tournament_id).all()
+        # 獲取該賽事的所有參賽者，添加排序
+        participants = Participant.query.filter_by(tournament_id=tournament_id)\
+            .order_by(Participant.group_code.asc(), Participant.display_order.asc())\
+            .all()
         
         # 按照組別分組
         groups = {}
         for participant in participants:
             if participant.group_code:  # 確保 group_code 存在
-                group_id = str(participant.group_code)  # 轉換為字串以確保唯一性
+                group_id = str(participant.group_code)
                 group_name = f"第 {participant.group_code} 組"
                 if group_name not in groups:
                     groups[group_name] = {
-                        "id": group_id,  # 使用字串作為 id
+                        "id": group_id,
                         "name": group_name,
                         "participants": []
                     }
@@ -1233,10 +1240,13 @@ def get_groups(tournament_id):
         # 轉換為列表格式並排序
         groups_list = sorted(list(groups.values()), key=lambda x: int(x["id"]))
 
+        app.logger.info(f"返回分組數據: {groups_list}")
         return jsonify(groups_list)
 
     except Exception as e:
-        app.logger.error(f"Error getting groups: {str(e)}")
+        app.logger.error(f"獲取分組時發生錯誤: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
 
 # 在應用啟動時執行遷移
