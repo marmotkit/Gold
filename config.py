@@ -1,5 +1,8 @@
 import os
 from datetime import timedelta
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key'
@@ -21,10 +24,9 @@ class ProductionConfig(Config):
     if SQLALCHEMY_DATABASE_URI:
         if SQLALCHEMY_DATABASE_URI.startswith('postgres://'):
             SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace('postgres://', 'postgresql://', 1)
+        logger.info(f"使用數據庫 URL: {SQLALCHEMY_DATABASE_URI}")
     else:
         raise ValueError("DATABASE_URL environment variable is not set")
-    
-    app.logger.info(f"使用數據庫 URL: {SQLALCHEMY_DATABASE_URI}")
     
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_size': 5,
