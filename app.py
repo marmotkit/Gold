@@ -122,14 +122,19 @@ CORS(app, resources={
         "supports_credentials": True,
         "max_age": 3600
     }
-})
+}, add_headers=False)  # 禁止 Flask-CORS 自動添加 headers
 
 @app.after_request
 def after_request(response):
+    # 移除任何可能存在的舊 header
+    if 'Access-Control-Allow-Origin' in response.headers:
+        del response.headers['Access-Control-Allow-Origin']
+        
     response.headers.add('Access-Control-Allow-Origin', 'https://gold-1-ccpj.onrender.com')
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     response.headers.add('Access-Control-Allow-Credentials', 'true')
+    response.headers.add('Access-Control-Max-Age', '3600')
     return response
 
 # 健康檢查端點
