@@ -1,18 +1,16 @@
 services:
   - type: web
-    name: gold
+    name: golf-backend
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
-      - key: FLASK_DEBUG
-        value: "true"
+      - key: FLASK_ENV
+        value: production
       - key: DATABASE_URL
-        value: postgresql://golf_db_awhw_user:dBgFZEHSGPh3OdDlUWKV85Xm8wvH4ao0@dpg-cu3k1ppu0jms73dl4teg-a.singapore-postgres.render.com/golf_db_awhw
-      - key: SQLALCHEMY_TRACK_MODIFICATIONS
-        value: "false"
-    healthCheckPath: /health
-    autoDeploy: true
+        fromDatabase:
+          name: golf-db
+          property: connectionString
 
 databases:
   - name: golf-db

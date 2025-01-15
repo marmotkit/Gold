@@ -63,72 +63,12 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-def parse_handicap(value):
-    """解析差點值"""
-    if pd.isna(value):
-        return None
-    
-    try:
-        # 如果是數字，直接返回
-        if isinstance(value, (int, float)):
-            return float(value)
-        
-        # 如果是字串，清理並轉換
-        if isinstance(value, str):
-            # 移除所有空白字符
-            value = re.sub(r'\s+', '', value)
-            # 如果是空字串，返回 None
-            if not value:
-                return None
-            # 轉換為浮點數
-            return float(value)
-        
-        return None
-    except (ValueError, TypeError):
-        return None
-
-def clean_text(text):
-    """清理文字，移除不必要的空白和特殊字符"""
-    if not text:
-        return ''
-    # 移除前後空白
-    text = text.strip()
-    # 移除多餘的空白
-    text = re.sub(r'\s+', ' ', text)
-    return text
-
-def clean_pre_group_code(value):
-    """清理預分組編號，確保是整數或空值"""
-    if pd.isna(value) or value == '' or value == 'nan':
-        return None
-        
-    try:
-        # 如果是數字，轉換為整數
-        if isinstance(value, (int, float)):
-            if pd.isna(value):  # 再次檢查 NaN
-                return None
-            return str(int(value))  # 轉換為整數後再轉為字串
-            
-        # 如果是字串，清理並轉換
-        if isinstance(value, str):
-            # 移除所有空白字符
-            value = re.sub(r'\s+', '', value)
-            # 如果是空字串，返回 None
-            if not value or value.lower() == 'nan':
-                return None
-            # 嘗試轉換為整數
-            return str(int(float(value)))
-            
-        return None
-    except (ValueError, TypeError):
-        return None
-
-# 創建應用程式
-app = Flask(__name__, static_folder='frontend/build', static_url_path='')
-
 # 獲取環境配置
-env = os.getenv('FLASK_ENV', 'development').strip()
-app.config.from_object(config[env])
+config_name = os.environ.get('FLASK_ENV', 'production')
+
+app = Flask(__name__, static_folder='frontend/build', static_url_path='')
+app.config.from_object(config[config_name])
+config[config_name].init_app(app)
 
 # 確保實例文件夾存在
 if not os.path.exists('instance'):
