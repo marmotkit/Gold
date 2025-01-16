@@ -68,16 +68,13 @@ function CheckInManagement({ tournament }) {
   const handleCheckIn = async (participant) => {
     try {
       const response = await fetch(
-        `${API_URL}/tournaments/${tournament.id}/participants/${participant.id}/check-in`,
+        `${buildApiUrl(`/tournaments/${tournament.id}/participants/${participant.id}/check-in`)}`,
         {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            check_in_status: participant.check_in_status === 'checked_in' ? 'not_checked_in' : 'checked_in',
-            check_in_time: participant.check_in_status === 'checked_in' ? null : new Date().toISOString()
-          }),
+          credentials: 'include'
         }
       );
 
@@ -86,32 +83,23 @@ function CheckInManagement({ tournament }) {
       }
 
       const data = await response.json();
-      // 更新本地狀態
-      setParticipants(prev =>
-        prev.map(p =>
-          p.id === participant.id
-            ? {
-                ...p,
-                check_in_status: data.participant.check_in_status,
-                check_in_time: data.participant.check_in_time
-              }
-            : p
-        )
-      );
-
-      setSnackbar({
-        open: true,
-        message: data.message,
-        severity: 'success'
-      });
-
+      
+      // 檢查回應是否成功
+      if (data.success) {
+        // 更新本地狀態
+        setParticipants(prevParticipants => 
+          prevParticipants.map(p => 
+            p.id === participant.id ? { ...p, ...data.participant } : p
+          )
+        );
+        
+        showMessage('報到成功', 'success');
+      } else {
+        throw new Error(data.error || '報到失敗');
+      }
     } catch (error) {
-      console.error('Error checking in:', error);
-      setSnackbar({
-        open: true,
-        message: '報到操作失敗',
-        severity: 'error'
-      });
+      console.error('報到錯誤:', error);
+      showMessage(error.message, 'error');
     }
   };
 
@@ -119,16 +107,13 @@ function CheckInManagement({ tournament }) {
   const handleCancelCheckIn = async (participant) => {
     try {
       const response = await fetch(
-        `${API_URL}/tournaments/${tournament.id}/participants/${participant.id}/check-in`,
+        `${buildApiUrl(`/tournaments/${tournament.id}/participants/${participant.id}/check-in`)}`,
         {
-          method: 'PUT',
+          method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            check_in_status: 'not_checked_in',
-            check_in_time: null
-          }),
+          credentials: 'include'
         }
       );
 
@@ -137,31 +122,23 @@ function CheckInManagement({ tournament }) {
       }
 
       const data = await response.json();
-      // 更新本地狀態
-      setParticipants(prev =>
-        prev.map(p =>
-          p.id === participant.id
-            ? {
-                ...p,
-                check_in_status: data.participant.check_in_status,
-                check_in_time: data.participant.check_in_time
-              }
-            : p
-        )
-      );
-
-      setSnackbar({
-        open: true,
-        message: '已取消報到',
-        severity: 'success'
-      });
+      
+      // 檢查回應是否成功
+      if (data.success) {
+        // 更新本地狀態
+        setParticipants(prevParticipants => 
+          prevParticipants.map(p => 
+            p.id === participant.id ? { ...p, ...data.participant } : p
+          )
+        );
+        
+        showMessage('取消報到成功', 'success');
+      } else {
+        throw new Error(data.error || '取消報到失敗');
+      }
     } catch (error) {
-      console.error('Error canceling check-in:', error);
-      setSnackbar({
-        open: true,
-        message: '取消���到失敗',
-        severity: 'error'
-      });
+      console.error('取消報到錯誤:', error);
+      showMessage(error.message, 'error');
     }
   };
 
@@ -286,7 +263,7 @@ function CheckInManagement({ tournament }) {
       <TableCell>{participant.handicap}</TableCell>
       <TableCell>{participant.group_code || '未分組'}</TableCell>
       <TableCell>
-        {participant.check_in_status === 'checked_in' ? (
+        {participant.checked_in ? (
           <Chip label="已報到" color="success" />
         ) : (
           <Chip label="未報到" color="default" />
@@ -295,13 +272,13 @@ function CheckInManagement({ tournament }) {
       <TableCell>
         <Button
           variant="contained"
-          color={participant.check_in_status === 'checked_in' ? "warning" : "primary"}
-          onClick={() => participant.check_in_status === 'checked_in' 
+          color={participant.checked_in ? "warning" : "primary"}
+          onClick={() => participant.checked_in 
             ? handleCancelCheckIn(participant) 
             : handleCheckIn(participant)}
           disabled={loading}
         >
-          {participant.check_in_status === 'checked_in' ? "取消報到" : "報到"}
+          {participant.checked_in ? "取消報到" : "報到"}
         </Button>
       </TableCell>
       <TableCell>
@@ -362,6 +339,15 @@ function CheckInManagement({ tournament }) {
       window.removeEventListener('focus', handleFocus);
     };
   }, [reloadParticipants, tournament?.id]);
+
+  // 添加顯示訊息的輔助函數
+  const showMessage = (message, severity) => {
+    setSnackbar({
+      open: true,
+      message,
+      severity
+    });
+  };
 
   if (!tournament) {
     return (
