@@ -50,6 +50,7 @@ import re
 import tempfile
 from flask_migrate import Migrate, upgrade
 import logging
+from urllib.parse import quote
 
 # 配置日誌
 logging.basicConfig(
@@ -1094,9 +1095,13 @@ def export_groups_diagram_v2(tournament_id):
             # 建立回應
             response = make_response(html.encode('utf-8'))
             filename = tournament.name.encode('utf-8').decode('utf-8')
+            
+            # 使用 URL 編碼處理檔案名稱
+            encoded_filename = quote(f"{filename}_分組圖.html")
+            
             response.headers.update({
                 'Content-Type': 'text/html; charset=utf-8',
-                'Content-Disposition': f'attachment; filename*=UTF-8\'\'{filename}_分組圖.html'
+                'Content-Disposition': f'attachment; filename="{encoded_filename}"'
             })
             
             app.logger.info("分組圖匯出成功")
