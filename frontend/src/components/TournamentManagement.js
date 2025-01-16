@@ -38,28 +38,34 @@ function TournamentManagement({ onTournamentSelect }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    loadTournaments();
+    fetchTournaments();
   }, []);
 
-  const loadTournaments = async () => {
+  const fetchTournaments = async () => {
     try {
-        console.log('Fetching from:', `${buildApiUrl('/tournaments')}`);
-        const response = await fetch(buildApiUrl('/tournaments'), {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            credentials: 'omit'
-        });
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        setTournaments(data);
+      const response = await fetch(`${buildApiUrl('/tournaments')}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        mode: 'cors'
+      });
+
+      if (!response.ok) {
+        throw new Error('獲取賽事列表失敗');
+      }
+
+      const data = await response.json();
+      setTournaments(data);
     } catch (error) {
-        console.error('Error fetching tournaments:', error);
-        throw error;
+      console.error('Error fetching tournaments:', error);
+      setSnackbar({
+        open: true,
+        message: '獲取賽事列表失敗',
+        severity: 'error'
+      });
     }
   };
 
@@ -104,7 +110,7 @@ function TournamentManagement({ onTournamentSelect }) {
         severity: 'success'
       });
 
-      await loadTournaments();
+      await fetchTournaments();
 
     } catch (error) {
       console.error('保存賽事時發生錯誤:', error);
@@ -179,7 +185,7 @@ function TournamentManagement({ onTournamentSelect }) {
           severity: 'success'
         });
 
-        await loadTournaments();
+        await fetchTournaments();
         return true;
       } catch (error) {
         console.error(`刪除賽事時發生錯誤 (重試次數: ${retryCount}):`, error);
