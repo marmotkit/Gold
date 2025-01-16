@@ -52,6 +52,7 @@ from flask_migrate import Migrate, upgrade
 import logging
 from urllib.parse import quote
 import socketio
+import eventlet
 
 # 配置日誌
 logging.basicConfig(
@@ -93,6 +94,10 @@ CORS(app,
      expose_headers=["Content-Disposition"],
      supports_credentials=True,
      max_age=600)
+
+# 初始化 Socket.IO
+sio = socketio.Server(cors_allowed_origins=["https://gold-1-ccpj.onrender.com"])
+app = socketio.WSGIApp(sio, app)
 
 @app.after_request
 def after_request(response):
@@ -527,8 +532,8 @@ def check_in_participant(tournament_id, participant_id):
             db.session.commit()
             app.logger.info(f"參賽者 {participant.name} 報到成功")
             
-            # 發送 WebSocket 事件通知所有客戶端
-            socketio.emit('participant_updated', {
+            # 使用 sio 發送事件
+            sio.emit('participant_updated', {
                 'tournament_id': tournament_id,
                 'participant': participant.to_dict()
             })
@@ -588,8 +593,8 @@ def cancel_check_in(tournament_id, participant_id):
             db.session.commit()
             app.logger.info(f"參賽者 {participant.name} 取消報到成功")
             
-            # 發送 WebSocket 事件通知所有客戶端
-            socketio.emit('participant_updated', {
+            # 使用 sio 發送事件
+            sio.emit('participant_updated', {
                 'tournament_id': tournament_id,
                 'participant': participant.to_dict()
             })
@@ -1515,4 +1520,4 @@ if __name__ == '__main__':
     app.logger.info(f'環境: {app.config.get("ENV")}')
     app.logger.info(f'調試模式: {app.config.get("DEBUG")}')
     port = int(os.environ.get('PORT', 8000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    eventlet.wsgi.server(eventlet.listen(('0.0.0.0', port)), app)
