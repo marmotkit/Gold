@@ -70,7 +70,9 @@ logger = logging.getLogger(__name__)
 config_name = os.environ.get('FLASK_ENV', 'production')
 
 # 初始化 Flask 應用
-app = Flask(__name__, static_folder='frontend/build', static_url_path='')
+app = Flask(__name__, 
+    static_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'frontend/build'),
+    static_url_path='')
 app.config.from_object(config[config_name])
 config[config_name].init_app(app)
 
@@ -102,6 +104,11 @@ def create_static_folder():
     if not os.path.exists(app.static_folder):
         os.makedirs(app.static_folder)
         app.logger.info(f"創建靜態文件夾: {app.static_folder}")
+    
+    # 檢查 index.html 是否存在
+    index_path = os.path.join(app.static_folder, 'index.html')
+    if not os.path.exists(index_path):
+        app.logger.warning(f"找不到 index.html: {index_path}")
 
 # 初始化 Socket.IO
 sio = socketio.Server(cors_allowed_origins=["https://gold-1-ccpj.onrender.com"])
@@ -172,12 +179,22 @@ def serve(path):
             # API 請求不應該由這個處理器處理
             return jsonify({'error': 'Not Found'}), 404
             
-        if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        static_file_path = os.path.join(app.static_folder, path)
+        app.logger.info(f"嘗試訪問文件: {static_file_path}")
+        
+        if path != "" and os.path.exists(static_file_path):
             app.logger.info(f"提供靜態文件: {path}")
             return send_from_directory(app.static_folder, path)
-        else:
+            
+        # 檢查 index.html 是否存在
+        index_path = os.path.join(app.static_folder, 'index.html')
+        if os.path.exists(index_path):
             app.logger.info("提供 index.html")
             return send_from_directory(app.static_folder, 'index.html')
+        else:
+            app.logger.error(f"找不到 index.html: {index_path}")
+            return jsonify({'error': 'Frontend not built'}), 404
+            
     except Exception as e:
         app.logger.error(f"處理前端路由時發生錯誤: {str(e)}")
         return jsonify({'error': str(e)}), 500
