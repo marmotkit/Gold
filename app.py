@@ -497,45 +497,125 @@ def delete_all_participants(tournament_id):
 
 # 更新報到狀態
 @app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>/check-in', methods=['PUT'])
-def update_check_in_status(tournament_id, participant_id):
+def check_in_participant(tournament_id, participant_id):
     try:
-        print('================== 請求開始 ==================')
-        print(f'請求路徑: {request.path}')
-        print(f'請求方法: {request.method}')
-        print(f'請求來源: {request.headers.get("Origin")}')
-        print(f'請求頭部:')
-        for name, value in request.headers.items():
-            print(f'  {name}: {value}')
-        print('============================================')
+        app.logger.info(f"處理參賽者 {participant_id} 的報到請求")
         
-        data = request.json
-        check_in_status = data.get('check_in_status')
-        check_in_time = data.get('check_in_time')
-        
+        # 檢查賽事是否存在
+        tournament = Tournament.query.get(tournament_id)
+        if not tournament:
+            app.logger.error(f"找不到賽事 ID: {tournament_id}")
+            return jsonify({'error': f'找不到賽事 ID: {tournament_id}'}), 404
+            
+        # 檢查參賽者是否存在
         participant = Participant.query.get(participant_id)
         if not participant:
-            return jsonify({'error': '找不到指定的參賽者'}), 404
+            app.logger.error(f"找不到參賽者 ID: {participant_id}")
+            return jsonify({'error': f'找不到參賽者 ID: {participant_id}'}), 404
             
+        # 檢查參賽者是否屬於該賽事
         if participant.tournament_id != tournament_id:
-            return jsonify({'error': '參賽者不屬於指定的賽事'}), 400
+            app.logger.error(f"參賽者 {participant_id} 不屬於賽事 {tournament_id}")
+            return jsonify({'error': '參賽者不屬於該賽事'}), 400
             
-        participant.check_in_status = check_in_status
-        if check_in_time:
-            participant.check_in_time = datetime.fromisoformat(check_in_time.replace('Z', '+00:00'))
-        else:
-            participant.check_in_time = None
+        # 更新報到狀態
+        participant.checked_in = True
+        participant.check_in_time = datetime.now()
+        
+        try:
+            db.session.commit()
+            app.logger.info(f"參賽者 {participant.name} 報到成功")
             
-        db.session.commit()
-        
-        return jsonify({
-            'message': '報到狀態更新成功',
-            'participant': participant.to_dict()
-        })
-        
+            # 返回完整的參賽者資料，包括更新後的狀態
+            return jsonify({
+                'success': True,
+                'message': '報到成功',
+                'participant': {
+                    'id': participant.id,
+                    'name': participant.name,
+                    'checked_in': participant.checked_in,
+                    'check_in_time': participant.check_in_time.isoformat() if participant.check_in_time else None,
+                    **participant.to_dict()  # 包含其他欄位
+                }
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"儲存報到狀態時發生錯誤: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': f'儲存報到狀態時發生錯誤: {str(e)}'
+            }), 500
+            
     except Exception as e:
-        db.session.rollback()
-        print(f"更新報到狀態時發生錯誤：{str(e)}")
-        return jsonify({'error': str(e)}), 500
+        app.logger.error(f"處理報到請求時發生錯誤: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# 取消報到功能路由
+@app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>/check-in', methods=['DELETE'])
+def cancel_check_in(tournament_id, participant_id):
+    try:
+        app.logger.info(f"處理參賽者 {participant_id} 的取消報到請求")
+        
+        # 檢查賽事是否存在
+        tournament = Tournament.query.get(tournament_id)
+        if not tournament:
+            app.logger.error(f"找不到賽事 ID: {tournament_id}")
+            return jsonify({'error': f'找不到賽事 ID: {tournament_id}'}), 404
+            
+        # 檢查參賽者是否存在
+        participant = Participant.query.get(participant_id)
+        if not participant:
+            app.logger.error(f"找不到參賽者 ID: {participant_id}")
+            return jsonify({'error': f'找不到參賽者 ID: {participant_id}'}), 404
+            
+        # 檢查參賽者是否屬於該賽事
+        if participant.tournament_id != tournament_id:
+            app.logger.error(f"參賽者 {participant_id} 不屬於賽事 {tournament_id}")
+            return jsonify({'error': '參賽者不屬於該賽事'}), 400
+            
+        # 更新報到狀態
+        participant.checked_in = False
+        participant.check_in_time = None
+        
+        try:
+            db.session.commit()
+            app.logger.info(f"參賽者 {participant.name} 取消報到成功")
+            
+            # 返回完整的參賽者資料，包括更新後的狀態
+            return jsonify({
+                'success': True,
+                'message': '取消報到成功',
+                'participant': {
+                    'id': participant.id,
+                    'name': participant.name,
+                    'checked_in': participant.checked_in,
+                    'check_in_time': None,
+                    **participant.to_dict()  # 包含其他欄位
+                }
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"儲存取消報到狀態時發生錯誤: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': f'儲存取消報到狀態時發生錯誤: {str(e)}'
+            }), 500
+            
+    except Exception as e:
+        app.logger.error(f"處理取消報到請求時發生錯誤: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 # 自動分組
 @app.route('/tournaments/<int:tournament_id>/auto-group', methods=['POST'])
@@ -1425,98 +1505,6 @@ def export_groups_pdf(tournament_id):
         
     except Exception as e:
         app.logger.error(f"匯出分組圖時發生錯誤: {str(e)}")
-        import traceback
-        app.logger.error(traceback.format_exc())
-        return jsonify({'error': str(e)}), 500
-
-# 添加報到功能路由
-@app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>/check-in', methods=['PUT'])
-def check_in_participant(tournament_id, participant_id):
-    try:
-        app.logger.info(f"處理參賽者 {participant_id} 的報到請求")
-        
-        # 檢查賽事是否存在
-        tournament = Tournament.query.get(tournament_id)
-        if not tournament:
-            app.logger.error(f"找不到賽事 ID: {tournament_id}")
-            return jsonify({'error': f'找不到賽事 ID: {tournament_id}'}), 404
-            
-        # 檢查參賽者是否存在
-        participant = Participant.query.get(participant_id)
-        if not participant:
-            app.logger.error(f"找不到參賽者 ID: {participant_id}")
-            return jsonify({'error': f'找不到參賽者 ID: {participant_id}'}), 404
-            
-        # 檢查參賽者是否屬於該賽事
-        if participant.tournament_id != tournament_id:
-            app.logger.error(f"參賽者 {participant_id} 不屬於賽事 {tournament_id}")
-            return jsonify({'error': '參賽者不屬於該賽事'}), 400
-            
-        # 更新報到狀態
-        participant.checked_in = True
-        participant.check_in_time = datetime.now()
-        
-        try:
-            db.session.commit()
-            app.logger.info(f"參賽者 {participant.name} 報到成功")
-            return jsonify({
-                'message': '報到成功',
-                'participant': participant.to_dict()
-            })
-            
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"儲存報到狀態時發生錯誤: {str(e)}")
-            return jsonify({'error': f'儲存報到狀態時發生錯誤: {str(e)}'}), 500
-            
-    except Exception as e:
-        app.logger.error(f"處理報到請求時發生錯誤: {str(e)}")
-        import traceback
-        app.logger.error(traceback.format_exc())
-        return jsonify({'error': str(e)}), 500
-
-# 取消報到功能路由
-@app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>/check-in', methods=['DELETE'])
-def cancel_check_in(tournament_id, participant_id):
-    try:
-        app.logger.info(f"處理參賽者 {participant_id} 的取消報到請求")
-        
-        # 檢查賽事是否存在
-        tournament = Tournament.query.get(tournament_id)
-        if not tournament:
-            app.logger.error(f"找不到賽事 ID: {tournament_id}")
-            return jsonify({'error': f'找不到賽事 ID: {tournament_id}'}), 404
-            
-        # 檢查參賽者是否存在
-        participant = Participant.query.get(participant_id)
-        if not participant:
-            app.logger.error(f"找不到參賽者 ID: {participant_id}")
-            return jsonify({'error': f'找不到參賽者 ID: {participant_id}'}), 404
-            
-        # 檢查參賽者是否屬於該賽事
-        if participant.tournament_id != tournament_id:
-            app.logger.error(f"參賽者 {participant_id} 不屬於賽事 {tournament_id}")
-            return jsonify({'error': '參賽者不屬於該賽事'}), 400
-            
-        # 更新報到狀態
-        participant.checked_in = False
-        participant.check_in_time = None
-        
-        try:
-            db.session.commit()
-            app.logger.info(f"參賽者 {participant.name} 取消報到成功")
-            return jsonify({
-                'message': '取消報到成功',
-                'participant': participant.to_dict()
-            })
-            
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"儲存取消報到狀態時發生錯誤: {str(e)}")
-            return jsonify({'error': f'儲存取消報到狀態時發生錯誤: {str(e)}'}), 500
-            
-    except Exception as e:
-        app.logger.error(f"處理取消報到請求時發生錯誤: {str(e)}")
         import traceback
         app.logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
