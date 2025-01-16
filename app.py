@@ -88,13 +88,24 @@ db.init_app(app)
 migrate = Migrate(app, db)
 
 # 修改 CORS 設定
-CORS(app, 
-     origins=["https://gold-1-ccpj.onrender.com", "http://localhost:3000"],
-     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-     allow_headers=["Content-Type", "Authorization", "Content-Disposition", "Accept"],
-     expose_headers=["Content-Disposition"],
-     supports_credentials=True,
-     max_age=600)
+CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "https://gold-1-ccpj.onrender.com",  # 前端網址
+            "http://localhost:3000"  # 本地開發用
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
+
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', 'https://gold-1-ccpj.onrender.com')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
 
 # 確保靜態文件夾存在
 @app.before_first_request
