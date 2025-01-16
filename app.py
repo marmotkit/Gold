@@ -293,13 +293,23 @@ def import_participants(tournament_id):
             if pd.isna(row['姓名']):
                 continue
                 
+            # 處理預分組編號
+            pre_group_code = None
+            if '預分組編號' in df.columns and not pd.isna(row['預分組編號']):
+                pre_group_code = str(int(float(str(row['預分組編號']).strip())))
+                
+            # 處理會員編號
+            member_id = None
+            if '會員編號' in df.columns and not pd.isna(row['會員編號']):
+                member_id = str(row['會員編號']).strip()
+                
             participant = Participant(
                 tournament_id=tournament_id,
                 name=str(row['姓名']).strip(),
                 gender='F' if str(row['性別']).strip().upper() in ['F', '女'] else 'M',
                 handicap=parse_handicap(row['差點']),
-                member_id=str(row.get('會員編號', '')).strip() if not pd.isna(row.get('會員編號', '')) else None,
-                member_number=str(row.get('會員證號', '')).strip() if not pd.isna(row.get('會員證號', '')) else None,
+                member_id=member_id,
+                pre_group_code=pre_group_code,
                 registration_number=generate_registration_number(),
                 display_order=get_next_display_order(tournament_id)
             )
