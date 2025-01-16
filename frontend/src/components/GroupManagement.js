@@ -1148,6 +1148,31 @@ function GroupManagement({ tournament, onSave }) {
     };
   }, []);
 
+  // 添加移動分組的函數
+  const handleMoveGroup = useCallback((groupId, direction) => {
+    const currentIndex = groupOrder.indexOf(groupId);
+    if (currentIndex === -1) return;
+
+    const newGroupOrder = [...groupOrder];
+    if (direction === 'up' && currentIndex > 0) {
+      // 向上移動
+      [newGroupOrder[currentIndex], newGroupOrder[currentIndex - 1]] = 
+      [newGroupOrder[currentIndex - 1], newGroupOrder[currentIndex]];
+    } else if (direction === 'down' && currentIndex < groupOrder.length - 1) {
+      // 向下移動
+      [newGroupOrder[currentIndex], newGroupOrder[currentIndex + 1]] = 
+      [newGroupOrder[currentIndex + 1], newGroupOrder[currentIndex]];
+    }
+
+    setGroupOrder(newGroupOrder);
+  }, [groupOrder]);
+
+  // 在 useEffect 中初始化分組順序
+  useEffect(() => {
+    const initialOrder = Object.keys(groups).sort((a, b) => parseInt(a) - parseInt(b));
+    setGroupOrder(initialOrder);
+  }, [groups]);
+
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
