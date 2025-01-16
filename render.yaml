@@ -6,11 +6,15 @@ services:
       # 安裝 Python 依賴
       pip install -r requirements.txt
       
-      # 創建靜態文件夾
-      mkdir -p static
+      # 安裝 Node.js
+      curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+      apt-get install -y nodejs
       
-      # 複製前端文件到靜態文件夾
-      cp -r frontend/build/* static/ || true
+      # 構建前端
+      cd frontend
+      npm install
+      npm run build
+      cd ..
       
     startCommand: gunicorn app:app
     envVars:

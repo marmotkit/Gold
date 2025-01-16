@@ -71,7 +71,7 @@ config_name = os.environ.get('FLASK_ENV', 'production')
 
 # 初始化 Flask 應用
 app = Flask(__name__, 
-    static_folder='static',  # 改用 static 文件夾
+    static_folder='frontend/build',  # 改回使用 frontend/build
     static_url_path='')
 app.config.from_object(config[config_name])
 config[config_name].init_app(app)
@@ -185,24 +185,16 @@ def serve(path):
             # API 請求不應該由這個處理器處理
             return jsonify({'error': 'Not Found'}), 404
             
-        # 先嘗試提供靜態文件
-        static_file_path = os.path.join(app.static_folder, path)
-        if path and os.path.exists(static_file_path):
-            app.logger.info(f"提供靜態文件: {path}")
-            return send_from_directory(app.static_folder, path)
-            
-        # 如果不是靜態文件，返回 index.html
-        index_path = os.path.join(app.static_folder, 'index.html')
-        if os.path.exists(index_path):
-            app.logger.info("提供 index.html")
+        # 如果是根路徑，直接返回 index.html
+        if not path:
             return send_from_directory(app.static_folder, 'index.html')
             
-        app.logger.error("找不到前端文件")
-        return jsonify({
-            'error': 'Frontend files not found',
-            'static_folder': app.static_folder,
-            'index_path': index_path
-        }), 404
+        # 嘗試提供靜態文件
+        if os.path.exists(os.path.join(app.static_folder, path)):
+            return send_from_directory(app.static_folder, path)
+            
+        # 其他路徑都返回 index.html
+        return send_from_directory(app.static_folder, 'index.html')
             
     except Exception as e:
         app.logger.error(f"處理前端路由時發生錯誤: {str(e)}")
