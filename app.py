@@ -1300,30 +1300,38 @@ def get_groups(tournament_id):
 # 在應用啟動時執行遷移
 with app.app_context():
     try:
-        # 檢查是否已經存在 member_id 欄位
+        # 檢查是否已經存在必要欄位
         inspector = db.inspect(db.engine)
         existing_columns = inspector.get_columns('participants')
-        has_member_id = any(col['name'] == 'member_id' for col in existing_columns)
+        existing_column_names = [col['name'] for col in existing_columns]
         
-        if not has_member_id:
-            app.logger.info("開始添加 member_id 欄位...")
-            
-            # 創建臨時表並複製數據
+        # 檢查並添加 checked_in 欄位
+        if 'checked_in' not in existing_column_names:
+            app.logger.info("開始添加 checked_in 欄位...")
             db.session.execute('''
                 ALTER TABLE participants 
-                ADD COLUMN IF NOT EXISTS member_id VARCHAR(20)
+                ADD COLUMN IF NOT EXISTS checked_in BOOLEAN DEFAULT FALSE
             ''')
+            app.logger.info("checked_in 欄位添加成功")
             
-            # 提交更改
-            db.session.commit()
-            app.logger.info("member_id 欄位添加成功")
-        else:
-            app.logger.info("member_id 欄位已存在")
+        # 檢查並添加 check_in_time 欄位
+        if 'check_in_time' not in existing_column_names:
+            app.logger.info("開始添加 check_in_time 欄位...")
+            db.session.execute('''
+                ALTER TABLE participants 
+                ADD COLUMN IF NOT EXISTS check_in_time TIMESTAMP
+            ''')
+            app.logger.info("check_in_time 欄位添加成功")
+            
+        # 提交更改
+        db.session.commit()
+        app.logger.info("數據庫更新完成")
             
     except Exception as e:
         app.logger.error(f"數據庫更新失敗: {str(e)}")
         import traceback
         app.logger.error(traceback.format_exc())
+        db.session.rollback()
 
 @app.route('/tournaments/<int:tournament_id>/export_groups_pdf', methods=['GET'])
 def export_groups_pdf(tournament_id):

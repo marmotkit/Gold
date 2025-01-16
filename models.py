@@ -34,6 +34,7 @@ class Participant(db.Model):
     check_in_time = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    checked_in = db.Column(db.Boolean, default=False)
 
     def to_dict(self):
         return {
@@ -47,7 +48,9 @@ class Participant(db.Model):
             'display_order': self.display_order,
             'pre_group_code': self.pre_group_code,
             'notes': self.notes,
-            'member_id': self.member_id
+            'member_id': self.member_id,
+            'checked_in': self.checked_in,
+            'check_in_time': self.check_in_time.isoformat() if self.check_in_time else None
         }
 
     def __repr__(self):
