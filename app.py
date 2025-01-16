@@ -83,9 +83,9 @@ init_extensions(app)
 db.init_app(app)
 migrate = Migrate(app, db)
 
-# 添加新的 CORS 設定
+# 修改 CORS 設定
 CORS(app, 
-     origins=["https://gold-1-ccpj.onrender.com", "https://gold-v00p.onrender.com"],
+     origins=["https://gold-1-ccpj.onrender.com"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
      allow_headers=["Content-Type", "Authorization", "Content-Disposition", "Accept"],
      expose_headers=["Content-Disposition"],
@@ -96,7 +96,7 @@ CORS(app,
 def after_request(response):
     try:
         origin = request.headers.get('Origin')
-        if origin in ["https://gold-1-ccpj.onrender.com", "https://gold-v00p.onrender.com"]:
+        if origin == "https://gold-1-ccpj.onrender.com":
             response.headers['Access-Control-Allow-Origin'] = origin
             response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
             response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, Content-Disposition, Accept'
