@@ -155,8 +155,17 @@ def handle_options():
     response = jsonify({'status': 'ok'})
     return response
 
-# 獲取賽事列表
-@app.route('/tournaments', methods=['GET'])
+# 前端路由處理
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve(path):
+    if path != "" and os.path.exists(app.static_folder + '/' + path):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
+
+# API 路由
+@app.route('/api/tournaments', methods=['GET'])
 def get_tournaments():
     try:
         app.logger.info("獲取所有賽事列表")
@@ -171,12 +180,19 @@ def get_tournaments():
         app.logger.error(f"獲取賽事列表時發生錯誤: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-# 建立新賽事
-@app.route('/tournaments', methods=['POST'])
+@app.route('/api/tournaments', methods=['POST'])
 def create_tournament():
     try:
+        app.logger.info("開始建立新賽事")
+        
+        # 檢查請求內容
+        if not request.is_json:
+            app.logger.error("請求內容不是 JSON 格式")
+            return jsonify({'error': '請求必須是 JSON 格式'}), 400
+            
         data = request.get_json()
         if not data or 'name' not in data:
+            app.logger.error("缺少必要欄位")
             return jsonify({'error': '缺少必要欄位'}), 400
             
         tournament = Tournament(
@@ -187,6 +203,7 @@ def create_tournament():
         db.session.add(tournament)
         db.session.commit()
         
+        app.logger.info(f"成功建立賽事: {tournament.name}")
         return jsonify({
             'id': tournament.id,
             'name': tournament.name,
@@ -200,7 +217,7 @@ def create_tournament():
         return jsonify({'error': str(e)}), 500
 
 # 獲取賽事的參賽者列表
-@app.route('/tournaments/<int:tournament_id>/participants', methods=['GET'])
+@app.route('/api/tournaments/<int:tournament_id>/participants', methods=['GET'])
 def get_tournament_participants(tournament_id):
     try:
         print('================== 請求開始 ==================')
@@ -278,7 +295,7 @@ def parse_pre_group_code(value):
     except (ValueError, TypeError):
         return None
 
-@app.route('/tournaments/<int:tournament_id>/participants/import', methods=['POST'])
+@app.route('/api/tournaments/<int:tournament_id>/participants/import', methods=['POST'])
 def import_participants(tournament_id):
     try:
         app.logger.info(f"開始匯入賽事 {tournament_id} 的參賽者")
