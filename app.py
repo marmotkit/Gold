@@ -211,183 +211,55 @@ def create_tournament():
         return jsonify({'error': str(e)}), 500
 
 # 獲取賽事的參賽者列表
-@app.route('/api/tournaments/<int:tournament_id>/participants', methods=['GET'])
+@app.route('/tournaments/<int:tournament_id>/participants', methods=['GET'])
 def get_tournament_participants(tournament_id):
     try:
-        print('================== 請求開始 ==================')
-        print(f'請求路徑: {request.path}')
-        print(f'請求方法: {request.method}')
-        print(f'請求來源: {request.headers.get("Origin")}')
-        print(f'請求頭部:')
-        for name, value in request.headers.items():
-            print(f'  {name}: {value}')
-        print('============================================')
-        
-        participants = Participant.query.filter_by(tournament_id=tournament_id).order_by(Participant.display_order).all()
-        print(f"\n獲取賽事 {tournament_id} 的參賽者列表")
-        print(f"總共找到 {len(participants)} 位參賽者")
-        
-        result = []
-        for p in participants:
-            participant_dict = p.to_dict()
-            print(f"參賽者資料：姓名={p.name}, 預分組編號={p.pre_group_code}")
-            result.append(participant_dict)
-            
-        return jsonify(result)
-        
+        participants = Participant.query.filter_by(tournament_id=tournament_id)\
+            .order_by(Participant.display_order).all()
+        return jsonify([p.to_dict() for p in participants])
     except Exception as e:
-        print(f"獲取參賽者列表時發生錯誤：{str(e)}")
-        import traceback
-        print(traceback.format_exc())
+        app.logger.error(f"獲取參賽者列表時發生錯誤: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-def parse_handicap(value):
-    """解析差點值"""
-    if pd.isna(value):
-        return None
-    
-    try:
-        # 如果是數字，直接返回
-        if isinstance(value, (int, float)):
-            return float(value)
-        
-        # 如果是字串，清理並轉換
-        if isinstance(value, str):
-            # 移除所有空白字符
-            value = re.sub(r'\s+', '', value)
-            # 如果是空字串，返回 None
-            if not value:
-                return None
-            # 轉換為浮點數
-            return float(value)
-        
-        return None
-    except (ValueError, TypeError):
-        return None
-
-def parse_pre_group_code(value):
-    """解析預分組編號"""
-    if pd.isna(value):
-        return None
-    
-    try:
-        # 如果是數字，轉換為整數
-        if isinstance(value, (int, float)):
-            return str(int(value))
-        
-        # 如果是字串，清理並轉換
-        if isinstance(value, str):
-            # 移除所有空白字符
-            value = re.sub(r'\s+', '', value)
-            # 如果是空字串，返回 None
-            if not value:
-                return None
-            # 轉換為整數
-            return str(int(float(value)))
-        
-        return None
-    except (ValueError, TypeError):
-        return None
-
-@app.route('/api/tournaments/<int:tournament_id>/participants/import', methods=['POST'])
+# 匯入參賽者
+@app.route('/tournaments/<int:tournament_id>/participants/import', methods=['POST'])
 def import_participants(tournament_id):
     try:
-        app.logger.info(f"開始匯入賽事 {tournament_id} 的參賽者")
-        
-        # 檢查賽事是否存在
-        tournament = Tournament.query.get(tournament_id)
-        if not tournament:
-            app.logger.error(f"找不到賽事 ID: {tournament_id}")
-            return jsonify({'error': f'找不到賽事 ID: {tournament_id}'}), 404
-        
         if 'file' not in request.files:
-            app.logger.error("未找到上傳的檔案")
-            return jsonify({'error': '未找到上傳的檔案'}), 400
+            return jsonify({'error': '未找到上傳的文件'}), 400
             
         file = request.files['file']
         if not file:
-            app.logger.error("檔案為空")
-            return jsonify({'error': '檔案為空'}), 400
-
-        # 讀取 Excel 檔案
-        try:
-            df = pd.read_excel(file)
-            app.logger.info(f"成功讀取 Excel 檔案，共 {len(df)} 行")
-        except Exception as e:
-            app.logger.error(f"讀取 Excel 檔案失敗: {str(e)}")
-            return jsonify({'error': f'讀取 Excel 檔案失敗: {str(e)}'}), 400
-
-        # 檢查必要欄位
-        required_columns = ['姓名', '性別', '差點']
-        missing_columns = [col for col in required_columns if col not in df.columns]
-        if missing_columns:
-            app.logger.error(f"缺少必要欄位: {missing_columns}")
-            return jsonify({'error': f'缺少必要欄位: {missing_columns}'}), 400
-
-        # 清理和轉換資料
-        participants_data = []
-        for index, row in df.iterrows():
-            try:
-                name = str(row['姓名']).strip()
-                gender = 'F' if str(row['性別']).strip().upper() in ['F', '女'] else 'M'
-                handicap = parse_handicap(row['差點'])
-                
-                if not name:  # 跳過沒有姓名的行
-                    continue
-                    
-                participant_data = {
-                    'name': name,
-                    'gender': gender,
-                    'handicap': handicap,
-                    'tournament_id': tournament_id,
-                    'registration_number': f'A{index+1:02d}',
-                    'display_order': index
-                }
-                
-                # 處理預分組編號
-                if '預分組編號' in df.columns:
-                    pre_group = parse_pre_group_code(row['預分組編號'])
-                    participant_data['pre_group_code'] = pre_group
-                    app.logger.info(f"參賽者 {name} 的預分組編號: {pre_group}")
-
-                # 處理會員編號
-                if '會員編號' in df.columns:
-                    member_number = str(row['會員編號']).strip() if pd.notna(row['會員編號']) else None
-                    participant_data['member_number'] = member_number
-
-                participants_data.append(participant_data)
-                
-            except Exception as e:
-                app.logger.error(f"處理第 {index+1} 行資料時發生錯誤: {str(e)}")
-                continue
-
-        # 批次新增參賽者
-        try:
-            # 先刪除該賽事的所有參賽者
-            Participant.query.filter_by(tournament_id=tournament_id).delete()
+            return jsonify({'error': '文件為空'}), 400
             
-            # 新增新的參賽者
-            for data in participants_data:
-                participant = Participant(**data)
-                db.session.add(participant)
+        # 讀取 Excel 文件
+        df = pd.read_excel(file)
+        
+        # 處理每一行數據
+        imported_count = 0
+        for _, row in df.iterrows():
+            participant = Participant(
+                tournament_id=tournament_id,
+                name=row.get('姓名', ''),
+                gender=row.get('性別', ''),
+                handicap=parse_handicap(row.get('差點')),
+                member_id=str(row.get('會員編號', '')),
+                member_number=str(row.get('會員證號', '')),
+                registration_number=generate_registration_number(),
+                display_order=get_next_display_order(tournament_id)
+            )
+            db.session.add(participant)
+            imported_count += 1
             
-            db.session.commit()
-            app.logger.info(f"成功匯入 {len(participants_data)} 位參賽者")
-            
-            return jsonify({
-                'message': f'成功匯入 {len(participants_data)} 位參賽者',
-                'count': len(participants_data)
-            })
-            
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"儲存資料時發生錯誤: {str(e)}")
-            return jsonify({'error': f'儲存資料時發生錯誤: {str(e)}'}), 500
-
+        db.session.commit()
+        return jsonify({
+            'message': f'成功匯入 {imported_count} 位參賽者',
+            'count': imported_count
+        })
+        
     except Exception as e:
+        db.session.rollback()
         app.logger.error(f"匯入參賽者時發生錯誤: {str(e)}")
-        import traceback
-        app.logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 # 獲取下一個報名序號
@@ -1256,12 +1128,16 @@ def update_participant_notes(tournament_id, participant_id):
             'error': True
         }), 400
 
-@app.route('/')
-def index():
-    return jsonify({
-        'status': 'ok',
-        'message': 'Golf Tournament API is running'
-    })
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve(path):
+    try:
+        if path and os.path.exists(os.path.join(app.static_folder, path)):
+            return send_from_directory(app.static_folder, path)
+        return send_from_directory(app.static_folder, 'index.html')
+    except Exception as e:
+        app.logger.error(f"路由錯誤: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/favicon.ico')
 def favicon():
