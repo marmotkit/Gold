@@ -70,9 +70,7 @@ logger = logging.getLogger(__name__)
 config_name = os.environ.get('FLASK_ENV', 'production')
 
 # 初始化 Flask 應用
-app = Flask(__name__, 
-    static_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static'),
-    static_url_path='')
+app = Flask(__name__, static_folder='frontend/build', static_url_path='')
 app.config.from_object(config[config_name])
 config[config_name].init_app(app)
 
@@ -565,22 +563,11 @@ def check_in_participant(tournament_id, participant_id):
     try:
         app.logger.info(f"處理參賽者 {participant_id} 的報到請求")
         
-        # 檢查賽事是否存在
-        tournament = Tournament.query.get(tournament_id)
-        if not tournament:
-            app.logger.error(f"找不到賽事 ID: {tournament_id}")
-            return jsonify({'error': f'找不到賽事 ID: {tournament_id}'}), 404
-            
         # 檢查參賽者是否存在
         participant = Participant.query.get(participant_id)
         if not participant:
             app.logger.error(f"找不到參賽者 ID: {participant_id}")
             return jsonify({'error': f'找不到參賽者 ID: {participant_id}'}), 404
-            
-        # 檢查參賽者是否屬於該賽事
-        if participant.tournament_id != tournament_id:
-            app.logger.error(f"參賽者 {participant_id} 不屬於賽事 {tournament_id}")
-            return jsonify({'error': '參賽者不屬於該賽事'}), 400
             
         # 更新報到狀態
         participant.checked_in = True
@@ -590,13 +577,6 @@ def check_in_participant(tournament_id, participant_id):
             db.session.commit()
             app.logger.info(f"參賽者 {participant.name} 報到成功")
             
-            # 使用 sio 發送事件
-            sio.emit('participant_updated', {
-                'tournament_id': tournament_id,
-                'participant': participant.to_dict()
-            })
-            
-            # 返回完整的參賽者資料，包括更新後的狀態
             return jsonify({
                 'success': True,
                 'message': '報到成功',
@@ -613,8 +593,6 @@ def check_in_participant(tournament_id, participant_id):
             
     except Exception as e:
         app.logger.error(f"處理報到請求時發生錯誤: {str(e)}")
-        import traceback
-        app.logger.error(traceback.format_exc())
         return jsonify({
             'success': False,
             'error': str(e)
