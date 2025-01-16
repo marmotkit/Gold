@@ -2,14 +2,17 @@ services:
   - type: web
     name: golf-tournament
     env: python
-    buildCommand: bash build.sh
-    startCommand: gunicorn app:socket_app
+    buildCommand: |
+      # 安裝 Python 依賴
+      pip install -r requirements.txt
+      
+      # 創建靜態文件夾
+      mkdir -p static
+      
+      # 複製前端文件到靜態文件夾
+      cp -r frontend/build/* static/ || true
+      
+    startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
-        value: 3.9.18
-    buildFilter:
-      paths:
-        - frontend/**
-        - app.py
-        - requirements.txt
-        - build.sh
+        value: 3.8.18

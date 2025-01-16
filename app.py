@@ -70,7 +70,9 @@ logger = logging.getLogger(__name__)
 config_name = os.environ.get('FLASK_ENV', 'production')
 
 # 初始化 Flask 應用
-app = Flask(__name__, static_folder='frontend/build', static_url_path='')
+app = Flask(__name__, 
+    static_folder='static',  # 改用 static 文件夾
+    static_url_path='')
 app.config.from_object(config[config_name])
 config[config_name].init_app(app)
 
@@ -196,7 +198,11 @@ def serve(path):
             return send_from_directory(app.static_folder, 'index.html')
             
         app.logger.error("找不到前端文件")
-        return jsonify({'error': 'Frontend files not found'}), 404
+        return jsonify({
+            'error': 'Frontend files not found',
+            'static_folder': app.static_folder,
+            'index_path': index_path
+        }), 404
             
     except Exception as e:
         app.logger.error(f"處理前端路由時發生錯誤: {str(e)}")
