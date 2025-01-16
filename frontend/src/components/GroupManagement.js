@@ -195,32 +195,11 @@ function GroupManagement({ tournament, onSave }) {
       }
 
       const data = await response.json();
-      console.log('載入的參賽者數據:', data);  // 添加日誌
+      console.log('載入的參賽者數據:', data);
       
-      // 設置未分組的參賽者
-      const ungroupedParticipants = data.filter(p => !p.group_code);
-      setUngroupedParticipants(ungroupedParticipants);
-      
-      // 設置已分組的參賽者
-      const groupedData = data.reduce((acc, participant) => {
-        if (participant.group_code) {
-          if (!acc[participant.group_code]) {
-            acc[participant.group_code] = {
-              participants: []
-            };
-          }
-          acc[participant.group_code].participants.push(participant);
-        }
-        return acc;
-      }, {});
-      
-      console.log('處理後的分組數據:', groupedData);  // 添加日誌
-      setGroups(groupedData);
-      
-      // 設置組別順序
-      const order = Object.keys(groupedData)
-        .sort((a, b) => parseInt(a) - parseInt(b));
-      setGroupOrder(order);
+      // 初始時所有參賽者都是未分組的
+      setUngroupedParticipants(data);
+      setGroups({});  // 清空分組
       
     } catch (error) {
       console.error('載入參賽者錯誤:', error);
@@ -620,16 +599,12 @@ function GroupManagement({ tournament, onSave }) {
   const handleAutoGroup = async () => {
     try {
       setIsLoading(true);
-
+      
       // 獲取所有參賽者
-      const response = await fetch(`${API_URL}/tournaments/${tournament.id}/participants`);
-      if (!response.ok) {
-        throw new Error('獲取參賽者失敗');
-      }
-      const participants = await response.json();
+      const participants = [...ungroupedParticipants];
       
       // 按差點排序
-      const sortedParticipants = [...participants].sort((a, b) => {
+      const sortedParticipants = participants.sort((a, b) => {
         const handicapA = a.handicap === null ? 999 : a.handicap;
         const handicapB = b.handicap === null ? 999 : b.handicap;
         return handicapA - handicapB;
@@ -657,6 +632,7 @@ function GroupManagement({ tournament, onSave }) {
       console.log('自動分組結果:', newGroups);
       setGroups(newGroups);
       setGroupOrder(Object.keys(newGroups).sort((a, b) => parseInt(a) - parseInt(b)));
+      setUngroupedParticipants([]);  // 清空未分組名單
       setHasUnsavedChanges(true);
 
       setSnackbar({
