@@ -400,7 +400,8 @@ function GroupManagement({ tournament, onSave }) {
         headers: {
           'Accept': 'text/html, application/json',
         },
-        credentials: 'include'
+        credentials: 'include',
+        mode: 'cors'
       });
 
       if (!response.ok) {

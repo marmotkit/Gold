@@ -95,6 +95,17 @@ CORS(app, resources={
     }
 })
 
+@app.after_request
+def after_request(response):
+    origin = request.headers.get('Origin')
+    if origin in ["https://gold-1-ccpj.onrender.com", "https://gold-v00p.onrender.com"]:
+        response.headers.add('Access-Control-Allow-Origin', origin)
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,Content-Disposition,Accept')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        response.headers.add('Access-Control-Expose-Headers', 'Content-Disposition')
+    return response
+
 # 添加全局錯誤處理
 @app.errorhandler(500)
 def internal_error(error):
