@@ -1080,13 +1080,15 @@ def export_groups_diagram_v2(tournament_id):
             groups = {}
             for p in participants:
                 if p.group_code:
-                    if p.group_code not in groups:
-                        groups[p.group_code] = []
-                    groups[p.group_code].append(p)
-                    app.logger.info(f"參賽者 {p.name} 被分配到第 {p.group_code} 組")
+                    # 將 group_code 轉換為整數以便正確排序
+                    group_code = int(p.group_code)
+                    if group_code not in groups:
+                        groups[group_code] = []
+                    groups[group_code].append(p)
+                    app.logger.info(f"參賽者 {p.name} 被分配到第 {group_code} 組")
             
-            # 生成分組 HTML
-            for group_code in sorted(groups.keys()):
+            # 生成分組 HTML，使用排序後的組別
+            for group_code in sorted(groups.keys(), key=int):  # 使用 key=int 確保正確的數字排序
                 html += f'<div class="group"><h3>第 {group_code} 組</h3>'
                 for p in groups[group_code]:
                     style = ' female' if p.gender == 'F' else ''
