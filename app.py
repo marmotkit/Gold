@@ -1305,6 +1305,12 @@ with app.app_context():
         existing_columns = inspector.get_columns('participants')
         existing_column_names = [col['name'] for col in existing_columns]
         
+        # 如果存在舊的 check_in_status 欄位，將其刪除
+        if 'check_in_status' in existing_column_names:
+            app.logger.info("移除舊的 check_in_status 欄位...")
+            db.session.execute('ALTER TABLE participants DROP COLUMN IF EXISTS check_in_status')
+            app.logger.info("舊欄位移除成功")
+        
         # 檢查並添加 checked_in 欄位
         if 'checked_in' not in existing_column_names:
             app.logger.info("開始添加 checked_in 欄位...")
