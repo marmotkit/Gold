@@ -195,28 +195,33 @@ function GroupManagement({ tournament, onSave }) {
       }
 
       const data = await response.json();
+      console.log('載入的參賽者數據:', data);  // 添加日誌
       
       // 設置未分組的參賽者
-      const ungroupedParticipants = data.filter(p => !p.group_code || p.group_code === '未分組');
+      const ungroupedParticipants = data.filter(p => !p.group_code);
       setUngroupedParticipants(ungroupedParticipants);
       
       // 設置已分組的參賽者
       const groupedData = data.reduce((acc, participant) => {
-        if (participant.group_code && participant.group_code !== '未分組') {
+        if (participant.group_code) {
           if (!acc[participant.group_code]) {
-            acc[participant.group_code] = [];
+            acc[participant.group_code] = {
+              participants: []
+            };
           }
-          acc[participant.group_code].push(participant);
+          acc[participant.group_code].participants.push(participant);
         }
         return acc;
       }, {});
       
+      console.log('處理後的分組數據:', groupedData);  // 添加日誌
       setGroups(groupedData);
       
       // 設置組別順序
       const order = Object.keys(groupedData)
         .sort((a, b) => parseInt(a) - parseInt(b));
       setGroupOrder(order);
+      
     } catch (error) {
       console.error('載入參賽者錯誤:', error);
       setSnackbar({
@@ -227,7 +232,7 @@ function GroupManagement({ tournament, onSave }) {
     } finally {
       setIsLoading(false);
     }
-  }, [tournament.id]);
+  }, [tournament?.id]);
 
   useEffect(() => {
     if (tournament) {
@@ -1088,6 +1093,9 @@ function GroupManagement({ tournament, onSave }) {
 
   // 渲染所有分組
   const renderGroups = () => {
+    console.log('當前分組數據:', groups);  // 添加日誌
+    console.log('分組順序:', groupOrder);  // 添加日誌
+
     if (!groups || Object.keys(groups).length === 0) {
       return (
         <Box sx={{ p: 2, textAlign: 'center' }}>
@@ -1098,36 +1106,49 @@ function GroupManagement({ tournament, onSave }) {
 
     return (
       <GroupsContainer>
-        {Object.entries(groups).map(([groupId, group]) => (
-          <GroupCard key={groupId}>
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              mb: 1 
-            }}>
-              <Typography variant="subtitle1">
-                {`第 ${groupId} 組 ${group?.participants?.length || 0} 人`}
-              </Typography>
-              <Box>
-                <IconButton size="small" onClick={() => handleMoveGroup(groupId, 'up')}>
-                  <KeyboardArrowUpIcon />
-                </IconButton>
-                <IconButton size="small" onClick={() => handleMoveGroup(groupId, 'down')}>
-                  <KeyboardArrowDownIcon />
-                </IconButton>
+        {groupOrder.map(groupId => {
+          const group = groups[groupId];
+          if (!group) return null;
+
+          return (
+            <GroupCard key={groupId}>
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                mb: 1 
+              }}>
+                <Typography variant="subtitle1">
+                  {`第 ${groupId} 組 ${group.participants?.length || 0} 人`}
+                </Typography>
+                <Box>
+                  <IconButton size="small" onClick={() => handleMoveGroup(groupId, 'up')}>
+                    <KeyboardArrowUpIcon />
+                  </IconButton>
+                  <IconButton size="small" onClick={() => handleMoveGroup(groupId, 'down')}>
+                    <KeyboardArrowDownIcon />
+                  </IconButton>
+                </Box>
               </Box>
-            </Box>
-            
-            <Box sx={{ width: '100%' }}>
-              {group?.participants?.map((participant, index) => (
-                <ParticipantItem key={participant.id}>
-                  {/* 參賽者資訊... */}
-                </ParticipantItem>
-              ))}
-            </Box>
-          </GroupCard>
-        ))}
+              
+              <Box sx={{ width: '100%' }}>
+                {group.participants?.map((participant) => (
+                  <ParticipantItem key={participant.id}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography>{participant.name}</Typography>
+                      {participant.gender === 'F' ? (
+                        <FemaleIcon sx={{ color: 'pink' }} />
+                      ) : (
+                        <MaleIcon sx={{ color: 'blue' }} />
+                      )}
+                      <Typography>差點: {participant.handicap}</Typography>
+                    </Box>
+                  </ParticipantItem>
+                ))}
+              </Box>
+            </GroupCard>
+          );
+        })}
       </GroupsContainer>
     );
   };
