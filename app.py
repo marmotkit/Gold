@@ -89,12 +89,19 @@ migrate = Migrate(app, db)
 
 # 修改 CORS 設定
 CORS(app, 
-     origins=["https://gold-1-ccpj.onrender.com"],
+     origins=["https://gold-1-ccpj.onrender.com", "http://localhost:3000"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
      allow_headers=["Content-Type", "Authorization", "Content-Disposition", "Accept"],
      expose_headers=["Content-Disposition"],
      supports_credentials=True,
      max_age=600)
+
+# 確保靜態文件夾存在
+@app.before_first_request
+def create_static_folder():
+    if not os.path.exists(app.static_folder):
+        os.makedirs(app.static_folder)
+        app.logger.info(f"創建靜態文件夾: {app.static_folder}")
 
 # 初始化 Socket.IO
 sio = socketio.Server(cors_allowed_origins=["https://gold-1-ccpj.onrender.com"])
@@ -159,10 +166,21 @@ def handle_options():
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
-    if path != "" and os.path.exists(app.static_folder + '/' + path):
-        return send_from_directory(app.static_folder, path)
-    else:
-        return send_from_directory(app.static_folder, 'index.html')
+    app.logger.info(f"收到前端路由請求: {path}")
+    try:
+        if path.startswith('api/'):
+            # API 請求不應該由這個處理器處理
+            return jsonify({'error': 'Not Found'}), 404
+            
+        if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+            app.logger.info(f"提供靜態文件: {path}")
+            return send_from_directory(app.static_folder, path)
+        else:
+            app.logger.info("提供 index.html")
+            return send_from_directory(app.static_folder, 'index.html')
+    except Exception as e:
+        app.logger.error(f"處理前端路由時發生錯誤: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 # API 路由
 @app.route('/api/tournaments', methods=['GET'])
