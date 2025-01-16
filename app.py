@@ -1167,16 +1167,14 @@ def export_groups_diagram(tournament_id):
             response = make_response(html_content)
             response.headers.update({
                 'Content-Type': 'text/html; charset=utf-8',
-                'Content-Disposition': f'attachment; filename="{tournament.name}_分組圖.html"',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET',
-                'Access-Control-Allow-Headers': 'Content-Type'
+                'Content-Disposition': f'attachment; filename="{tournament.name}_分組圖.html"'
             })
             
             # 添加 CORS 標頭
             response.headers.add('Access-Control-Allow-Origin', '*')
             response.headers.add('Access-Control-Allow-Methods', 'GET')
             response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+            response.headers.add('Access-Control-Expose-Headers', 'Content-Disposition')
             
             app.logger.info("分組圖匯出成功")
             return response
