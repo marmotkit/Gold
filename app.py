@@ -69,6 +69,7 @@ logger = logging.getLogger(__name__)
 # 獲取環境配置
 config_name = os.environ.get('FLASK_ENV', 'production')
 
+# 初始化 Flask 應用
 app = Flask(__name__, static_folder='frontend/build', static_url_path='')
 app.config.from_object(config[config_name])
 config[config_name].init_app(app)
@@ -97,7 +98,7 @@ CORS(app,
 
 # 初始化 Socket.IO
 sio = socketio.Server(cors_allowed_origins=["https://gold-1-ccpj.onrender.com"])
-app = socketio.WSGIApp(sio, app)
+socket_app = socketio.WSGIApp(sio, app)  # 使用不同的變數名稱
 
 @app.after_request
 def after_request(response):
@@ -1520,4 +1521,4 @@ if __name__ == '__main__':
     app.logger.info(f'環境: {app.config.get("ENV")}')
     app.logger.info(f'調試模式: {app.config.get("DEBUG")}')
     port = int(os.environ.get('PORT', 8000))
-    eventlet.wsgi.server(eventlet.listen(('0.0.0.0', port)), app)
+    eventlet.wsgi.server(eventlet.listen(('0.0.0.0', port)), socket_app)  # 使用 socket_app
