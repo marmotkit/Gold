@@ -447,15 +447,6 @@ def delete_tournament(tournament_id):
 @app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>', methods=['DELETE'])
 def delete_participant(tournament_id, participant_id):
     try:
-        print('================== 請求開始 ==================')
-        print(f'請求路徑: {request.path}')
-        print(f'請求方法: {request.method}')
-        print(f'請求來源: {request.headers.get("Origin")}')
-        print(f'請求頭部:')
-        for name, value in request.headers.items():
-            print(f'  {name}: {value}')
-        print('============================================')
-        
         participant = Participant.query.get(participant_id)
         if not participant:
             return jsonify({'error': '找不到指定的參賽者'}), 404
@@ -463,7 +454,7 @@ def delete_participant(tournament_id, participant_id):
         if participant.tournament_id != tournament_id:
             return jsonify({'error': '參賽者不屬於指定的賽事'}), 400
             
-        if participant.check_in_status == 'checked_in':
+        if participant.checked_in:  # 使用新的欄位
             return jsonify({'error': '已報到的參賽者不能刪除'}), 400
             
         db.session.delete(participant)
@@ -473,6 +464,7 @@ def delete_participant(tournament_id, participant_id):
         
     except Exception as e:
         db.session.rollback()
+        app.logger.error(f"刪除參賽者時發生錯誤: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # 刪除全部參賽者
