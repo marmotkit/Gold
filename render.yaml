@@ -2,21 +2,10 @@ services:
   - type: web
     name: golf-tournament
     env: python
-    buildCommand: |
-      # 安裝 Python 依賴
-      pip install -r requirements.txt
-      
-      # 安裝 Node.js
-      curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-      apt-get install -y nodejs
-      
-      # 構建前端
-      cd frontend
-      npm install
-      npm run build
-      cd ..
-      
+    buildCommand: bash build.sh
     startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.8.18
+      - key: NODE_VERSION
+        value: 18.x

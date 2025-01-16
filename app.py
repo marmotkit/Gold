@@ -70,9 +70,7 @@ logger = logging.getLogger(__name__)
 config_name = os.environ.get('FLASK_ENV', 'production')
 
 # 初始化 Flask 應用
-app = Flask(__name__, 
-    static_folder='frontend/build',  # 改回使用 frontend/build
-    static_url_path='')
+app = Flask(__name__, static_folder='static', static_url_path='')
 app.config.from_object(config[config_name])
 config[config_name].init_app(app)
 
@@ -175,29 +173,24 @@ def handle_options():
     response = jsonify({'status': 'ok'})
     return response
 
+# API 路由處理
+@app.route('/api/<path:path>')
+def api_routes(path):
+    return jsonify({'error': 'Not Found'}), 404
+
 # 前端路由處理
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
-    app.logger.info(f"收到前端路由請求: {path}")
+    if path.startswith('api/'):
+        return api_routes(path[4:])
+        
     try:
-        if path.startswith('api/'):
-            # API 請求不應該由這個處理器處理
-            return jsonify({'error': 'Not Found'}), 404
-            
-        # 如果是根路徑，直接返回 index.html
-        if not path:
-            return send_from_directory(app.static_folder, 'index.html')
-            
-        # 嘗試提供靜態文件
-        if os.path.exists(os.path.join(app.static_folder, path)):
+        if path and os.path.exists(os.path.join(app.static_folder, path)):
             return send_from_directory(app.static_folder, path)
-            
-        # 其他路徑都返回 index.html
         return send_from_directory(app.static_folder, 'index.html')
-            
     except Exception as e:
-        app.logger.error(f"處理前端路由時發生錯誤: {str(e)}")
+        app.logger.error(f"路由錯誤: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # API 路由

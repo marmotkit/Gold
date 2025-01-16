@@ -1,26 +1,23 @@
-#!/usr/bin/env bash
-# exit on error
-set -o errexit
+#!/bin/bash
+set -e  # 遇到錯誤就停止
 
 # 安裝 Python 依賴
 pip install -r requirements.txt
 
-# 安裝 Node.js 和 npm
+# 安裝 Node.js
 curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
 apt-get install -y nodejs
 
-# 安裝前端依賴並構建
+# 構建前端
 cd frontend
 npm install
-CI=false npm run build
+npm run build
 cd ..
 
-# 創建靜態文件夾並複製前端構建文件
+# 準備靜態文件
+rm -rf static
 mkdir -p static
 cp -r frontend/build/* static/
 
-# 顯示靜態文件夾內容
-ls -la static/
-
 # 執行數據庫遷移
-python -m flask db upgrade
+flask db upgrade
