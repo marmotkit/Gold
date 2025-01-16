@@ -1045,7 +1045,7 @@ def export_groups_diagram_v2(tournament_id):
                         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                     }}
                     .female {{ 
-                        background: #ffe6e6;
+                        background: #ffd1dc !important;  /* 更鮮豔的粉紅色 */
                         border-radius: 4px;
                         padding: 4px 8px;
                     }}
@@ -1065,6 +1065,10 @@ def export_groups_diagram_v2(tournament_id):
                         padding: 6px;
                         background: #f8f9fa;
                         border-radius: 4px;
+                        transition: all 0.3s ease;  /* 添加過渡效果 */
+                    }}
+                    .player.female {{
+                        border-left: 4px solid #ff69b4;  /* 添加粉紅色邊框 */
                     }}
                 </style>
             </head>
