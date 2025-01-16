@@ -204,123 +204,22 @@ function DynamicGrouping({ tournament }) {
     }
   };
 
-  const exportToPDF = async () => {
+  const handleExportPDF = () => {
     try {
-      setLoading(true);
-      const element = groupsRef.current;
+      window.location.href = `${API_URL}/tournaments/${tournament.id}/export_groups_diagram_v2`;
       
-      // 創建一個新的視窗來顯示列印內容
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        throw new Error('無法開啟列印視窗，請檢查是否被瀏覽器阻擋');
-      }
-
-      // 設置列印視窗的內容
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>${tournament.name} - 分組表</title>
-            <style>
-              body {
-                font-family: Arial, sans-serif;
-                margin: 20px;
-                color: #000;
-              }
-              .header {
-                text-align: center;
-                margin-bottom: 20px;
-              }
-              .title {
-                font-size: 24px;
-                font-weight: bold;
-                margin-bottom: 10px;
-              }
-              .date {
-                font-size: 14px;
-                color: #666;
-              }
-              .groups-container {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-                gap: 20px;
-                margin-top: 20px;
-              }
-              .group {
-                border: 1px solid #ccc;
-                padding: 10px;
-                background-color: #f5f5f5;
-                break-inside: avoid;
-              }
-              .group-title {
-                font-weight: bold;
-                margin-bottom: 10px;
-                font-size: 16px;
-              }
-              .participant {
-                padding: 5px;
-                margin-bottom: 5px;
-                background-color: white;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-              }
-              .moved {
-                background-color: #fff9c4;
-              }
-              .female {
-                background-color: #fce4ec;
-              }
-              @media print {
-                @page {
-                  size: A4;
-                  margin: 1cm;
-                }
-                body {
-                  margin: 0;
-                }
-                .group {
-                  page-break-inside: avoid;
-                }
-              }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <div class="title">${tournament.name} - 分組表</div>
-              <div class="date">匯出日期: ${new Date().toLocaleDateString('zh-TW')}</div>
-            </div>
-            <div class="groups-container">
-              ${groups.map(group => `
-                <div class="group">
-                  <div class="group-title">${group.name} (${group.participants.length} 人)</div>
-                  ${group.participants.map(participant => `
-                    <div class="participant ${participant.gender === 'F' ? 'female' : ''} ${movedParticipants.has(participant.id) ? 'moved' : ''}">
-                      ${participant.name}
-                      ${participant.gender === 'F' ? '👩' : '👨'}
-                    </div>
-                  `).join('')}
-                </div>
-              `).join('')}
-            </div>
-          </body>
-        </html>
-      `);
-
-      // 等待樣式載入
-      setTimeout(() => {
-        printWindow.document.close();
-        printWindow.print();
-        // 當使用者完成列印後關閉視窗
-        printWindow.onafterprint = () => {
-          printWindow.close();
-        };
-        setLoading(false);
-      }, 500);
-
+      setSnackbar({
+        open: true,
+        message: '分組圖匯出成功',
+        severity: 'success'
+      });
     } catch (error) {
-      console.error('列印錯誤:', error);
-      showMessage(error.message || '列印失敗', 'error');
-      setLoading(false);
+      console.error('匯出分組圖錯誤:', error);
+      setSnackbar({
+        open: true,
+        message: '匯出分組圖失敗',
+        severity: 'error'
+      });
     }
   };
 
@@ -353,12 +252,11 @@ function DynamicGrouping({ tournament }) {
         )}
         <Button
           variant="contained"
-          color="info"
           startIcon={<PictureAsPdfIcon />}
-          onClick={exportToPDF}
-          disabled={loading}
+          onClick={handleExportPDF}
+          style={{ marginLeft: '10px' }}
         >
-          匯出 PDF
+          匯出分組圖
         </Button>
       </Box>
 
