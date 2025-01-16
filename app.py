@@ -1451,6 +1451,98 @@ def export_groups_pdf(tournament_id):
         app.logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
+# 添加報到功能路由
+@app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>/check-in', methods=['PUT'])
+def check_in_participant(tournament_id, participant_id):
+    try:
+        app.logger.info(f"處理參賽者 {participant_id} 的報到請求")
+        
+        # 檢查賽事是否存在
+        tournament = Tournament.query.get(tournament_id)
+        if not tournament:
+            app.logger.error(f"找不到賽事 ID: {tournament_id}")
+            return jsonify({'error': f'找不到賽事 ID: {tournament_id}'}), 404
+            
+        # 檢查參賽者是否存在
+        participant = Participant.query.get(participant_id)
+        if not participant:
+            app.logger.error(f"找不到參賽者 ID: {participant_id}")
+            return jsonify({'error': f'找不到參賽者 ID: {participant_id}'}), 404
+            
+        # 檢查參賽者是否屬於該賽事
+        if participant.tournament_id != tournament_id:
+            app.logger.error(f"參賽者 {participant_id} 不屬於賽事 {tournament_id}")
+            return jsonify({'error': '參賽者不屬於該賽事'}), 400
+            
+        # 更新報到狀態
+        participant.checked_in = True
+        participant.check_in_time = datetime.now()
+        
+        try:
+            db.session.commit()
+            app.logger.info(f"參賽者 {participant.name} 報到成功")
+            return jsonify({
+                'message': '報到成功',
+                'participant': participant.to_dict()
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"儲存報到狀態時發生錯誤: {str(e)}")
+            return jsonify({'error': f'儲存報到狀態時發生錯誤: {str(e)}'}), 500
+            
+    except Exception as e:
+        app.logger.error(f"處理報到請求時發生錯誤: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
+
+# 取消報到功能路由
+@app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>/check-in', methods=['DELETE'])
+def cancel_check_in(tournament_id, participant_id):
+    try:
+        app.logger.info(f"處理參賽者 {participant_id} 的取消報到請求")
+        
+        # 檢查賽事是否存在
+        tournament = Tournament.query.get(tournament_id)
+        if not tournament:
+            app.logger.error(f"找不到賽事 ID: {tournament_id}")
+            return jsonify({'error': f'找不到賽事 ID: {tournament_id}'}), 404
+            
+        # 檢查參賽者是否存在
+        participant = Participant.query.get(participant_id)
+        if not participant:
+            app.logger.error(f"找不到參賽者 ID: {participant_id}")
+            return jsonify({'error': f'找不到參賽者 ID: {participant_id}'}), 404
+            
+        # 檢查參賽者是否屬於該賽事
+        if participant.tournament_id != tournament_id:
+            app.logger.error(f"參賽者 {participant_id} 不屬於賽事 {tournament_id}")
+            return jsonify({'error': '參賽者不屬於該賽事'}), 400
+            
+        # 更新報到狀態
+        participant.checked_in = False
+        participant.check_in_time = None
+        
+        try:
+            db.session.commit()
+            app.logger.info(f"參賽者 {participant.name} 取消報到成功")
+            return jsonify({
+                'message': '取消報到成功',
+                'participant': participant.to_dict()
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"儲存取消報到狀態時發生錯誤: {str(e)}")
+            return jsonify({'error': f'儲存取消報到狀態時發生錯誤: {str(e)}'}), 500
+            
+    except Exception as e:
+        app.logger.error(f"處理取消報到請求時發生錯誤: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.logger.info('應用啟動中...')
     app.logger.info(f'環境: {app.config.get("ENV")}')
