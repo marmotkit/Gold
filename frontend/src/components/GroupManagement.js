@@ -391,44 +391,10 @@ function GroupManagement({ tournament, onSave }) {
   };
 
   // 處理匯出分組圖
-  const handleExportGroupsDiagram = async () => {
+  const handleExportGroupsDiagram = () => {
     try {
-      setIsLoading(true);
+      window.location.href = `${API_URL}/tournaments/${tournament.id}/export_groups_diagram_v2`;
       
-      const response = await fetch(`${API_URL}/tournaments/${tournament.id}/export_groups_diagram`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'text/html, application/json',
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        mode: 'cors'
-      });
-
-      if (!response.ok) {
-        if (response.headers.get('Content-Type')?.includes('application/json')) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || '匯出分組圖失敗');
-        }
-        throw new Error(`匯出分組圖失敗 (${response.status})`);
-      }
-
-      // 取得檔案名稱
-      const contentDisposition = response.headers.get('content-disposition');
-      const filenameMatch = contentDisposition && contentDisposition.match(/filename="(.+)"/);
-      const filename = filenameMatch ? filenameMatch[1] : '分組圖.html';
-
-      // 下載檔案
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
       setSnackbar({
         open: true,
         message: '分組圖匯出成功',
@@ -438,11 +404,9 @@ function GroupManagement({ tournament, onSave }) {
       console.error('匯出分組圖錯誤:', error);
       setSnackbar({
         open: true,
-        message: error.message || '匯出分組圖失敗',
+        message: '匯出分組圖失敗',
         severity: 'error'
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
