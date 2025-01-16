@@ -65,6 +65,11 @@ function DynamicGrouping({ tournament }) {
   const [newGroupName, setNewGroupName] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
   const [movedParticipants, setMovedParticipants] = useState(new Set());
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
 
   useEffect(() => {
     if (tournament) {
@@ -206,7 +211,7 @@ function DynamicGrouping({ tournament }) {
 
   const handleExportPDF = () => {
     try {
-      window.location.href = `${API_URL}/tournaments/${tournament.id}/export_groups_diagram_v2`;
+      window.location.href = `${buildApiUrl(`/tournaments/${tournament.id}/export_groups_diagram_v2`)}`;
       
       setSnackbar({
         open: true,
@@ -320,12 +325,15 @@ function DynamicGrouping({ tournament }) {
       </Dialog>
 
       <Snackbar
-        open={showSnackbar}
+        open={snackbar.open}
         autoHideDuration={6000}
-        onClose={() => setShowSnackbar(false)}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
       >
-        <Alert onClose={() => setShowSnackbar(false)} severity={snackbarSeverity}>
-          {snackbarMessage}
+        <Alert 
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
+          severity={snackbar.severity}
+        >
+          {snackbar.message}
         </Alert>
       </Snackbar>
     </Box>
