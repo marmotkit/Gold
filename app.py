@@ -150,25 +150,16 @@ def handle_options():
 @app.route('/tournaments', methods=['GET'])
 def get_tournaments():
     try:
-        app.logger.info("收到獲取賽事列表請求")
-        app.logger.info(f"數據庫 URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
-        
-        tournaments = Tournament.query.all()
-        result = []
-        for tournament in tournaments:
-            result.append({
-                'id': tournament.id,
-                'name': tournament.name,
-                'date': tournament.date.strftime('%Y-%m-%d') if tournament.date else None
-            })
-        app.logger.info(f"返回賽事列表: {result}")
-        
-        return jsonify(result)
-        
+        app.logger.info("獲取所有賽事列表")
+        tournaments = Tournament.query.order_by(Tournament.date.desc()).all()
+        return jsonify([{
+            'id': t.id,
+            'name': t.name,
+            'date': t.date.isoformat() if t.date else None,
+            'created_at': t.created_at.isoformat() if t.created_at else None
+        } for t in tournaments])
     except Exception as e:
         app.logger.error(f"獲取賽事列表時發生錯誤: {str(e)}")
-        import traceback
-        app.logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 # 建立新賽事
@@ -176,45 +167,27 @@ def get_tournaments():
 def create_tournament():
     try:
         data = request.get_json()
-        app.logger.info(f"接收到的數據: {data}")
-        
-        # 驗證必要字段
-        if not data.get('name'):
-            return jsonify({'error': '賽事名稱不能為空'}), 400
+        if not data or 'name' not in data:
+            return jsonify({'error': '缺少必要欄位'}), 400
             
-        # 解析日期
-        date = None
-        if data.get('date'):
-            try:
-                date = datetime.strptime(data['date'], '%Y-%m-%d').date()
-            except ValueError as e:
-                app.logger.error(f"日期解析錯誤: {str(e)}")
-                return jsonify({'error': '日期格式無效'}), 400
-        
-        app.logger.info(f"準備創建賽事: name={data['name']}, date={date}")
-        
-        # 創建賽事
         tournament = Tournament(
             name=data['name'],
-            date=date
+            date=datetime.strptime(data['date'], '%Y-%m-%d').date() if 'date' in data else None
         )
         
         db.session.add(tournament)
         db.session.commit()
-        app.logger.info(f"賽事創建成功: id={tournament.id}")
         
         return jsonify({
             'id': tournament.id,
             'name': tournament.name,
-            'date': tournament.date.strftime('%Y-%m-%d') if tournament.date else None,
-            'message': '賽事創建成功'
+            'date': tournament.date.isoformat() if tournament.date else None,
+            'created_at': tournament.created_at.isoformat() if tournament.created_at else None
         }), 201
         
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"創建賽事時發生錯誤: {str(e)}")
-        import traceback
-        app.logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 # 獲取賽事的參賽者列表
@@ -439,38 +412,33 @@ def get_next_registration_number(tournament_id):
 @app.route('/tournaments/<int:tournament_id>', methods=['DELETE'])
 def delete_tournament(tournament_id):
     try:
-        print('================== 請求開始 ==================')
-        print(f'請求路徑: {request.path}')
-        print(f'請求方法: {request.method}')
-        print(f'請求來源: {request.headers.get("Origin")}')
-        print(f'請求頭部:')
-        for name, value in request.headers.items():
-            print(f'  {name}: {value}')
-        print('============================================')
+        app.logger.info(f"開始刪除賽事 {tournament_id}")
+        tournament = Tournament.query.get(tournament_id)
         
-        print(f"開始刪除賽事 ID：{tournament_id}")
-        tournament = Tournament.query.get_or_404(tournament_id)
-        print(f"找到賽事：{tournament}")
+        if not tournament:
+            app.logger.error(f"找不到賽事 ID: {tournament_id}")
+            return jsonify({'error': f'找不到賽事 ID: {tournament_id}'}), 404
+            
+        # 檢查是否有已報到的參賽者
+        has_checked_in = Participant.query.filter_by(
+            tournament_id=tournament_id,
+            checked_in=True
+        ).first() is not None
         
-        # 先刪除所有相關的參賽者
-        print("刪除相關的參賽者")
-        Participant.query.filter_by(tournament_id=tournament_id).delete()
-        
-        # 再刪除賽事本身
-        print("刪除賽事本身")
+        if has_checked_in:
+            app.logger.warning(f"賽事 {tournament_id} 有已報到的參賽者，無法刪除")
+            return jsonify({'error': '該賽事有已報到的參賽者，無法刪除'}), 400
+            
+        # 刪除賽事及其所有參賽者
         db.session.delete(tournament)
-        
-        # 提交事務
         db.session.commit()
-        print(f"賽事刪除成功")
         
-        return '', 204
+        app.logger.info(f"賽事 {tournament_id} 刪除成功")
+        return jsonify({'message': '賽事刪除成功'})
         
     except Exception as e:
         db.session.rollback()
-        print(f"刪除賽事時發生錯誤：{str(e)}")
-        import traceback
-        print(traceback.format_exc())
+        app.logger.error(f"刪除賽事時發生錯誤: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # 刪除參賽者
