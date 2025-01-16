@@ -71,7 +71,7 @@ config_name = os.environ.get('FLASK_ENV', 'production')
 
 # 初始化 Flask 應用
 app = Flask(__name__, 
-    static_folder='static',  # 改用 static 文件夾
+    static_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static'),
     static_url_path='')
 app.config.from_object(config[config_name])
 config[config_name].init_app(app)
@@ -101,14 +101,20 @@ CORS(app,
 # 確保靜態文件夾存在
 @app.before_first_request
 def create_static_folder():
-    if not os.path.exists(app.static_folder):
-        os.makedirs(app.static_folder)
-        app.logger.info(f"創建靜態文件夾: {app.static_folder}")
+    static_dir = app.static_folder
+    if not os.path.exists(static_dir):
+        os.makedirs(static_dir)
+        app.logger.info(f"創建靜態文件夾: {static_dir}")
     
     # 檢查 index.html 是否存在
-    index_path = os.path.join(app.static_folder, 'index.html')
+    index_path = os.path.join(static_dir, 'index.html')
     if not os.path.exists(index_path):
         app.logger.warning(f"找不到 index.html: {index_path}")
+        # 列出靜態文件夾內容
+        app.logger.info(f"靜態文件夾內容:")
+        for root, dirs, files in os.walk(static_dir):
+            for file in files:
+                app.logger.info(f"  - {os.path.join(root, file)}")
 
 # 初始化 Socket.IO
 sio = socketio.Server(cors_allowed_origins=["https://gold-1-ccpj.onrender.com"])

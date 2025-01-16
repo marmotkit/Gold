@@ -2,8 +2,14 @@ services:
   - type: web
     name: golf-tournament
     env: python
-    buildCommand: ./build.sh
+    buildCommand: bash build.sh
     startCommand: gunicorn app:socket_app
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.18
+    buildFilter:
+      paths:
+        - frontend/**
+        - app.py
+        - requirements.txt
+        - build.sh
