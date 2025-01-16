@@ -67,10 +67,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # 獲取環境配置
-config_name = os.environ.get('FLASK_ENV', 'production')
+config_name = os.environ.get('FLASK_DEBUG', 'production')
 
 # 初始化 Flask 應用
-app = Flask(__name__, static_folder='static', static_url_path='')
+app = Flask(__name__, static_folder='frontend/build', static_url_path='')
 app.config.from_object(config[config_name])
 config[config_name].init_app(app)
 
@@ -174,27 +174,7 @@ def handle_options():
     return response
 
 # API 路由處理
-@app.route('/api/<path:path>')
-def api_routes(path):
-    return jsonify({'error': 'Not Found'}), 404
-
-# 前端路由處理
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
-def serve(path):
-    if path.startswith('api/'):
-        return api_routes(path[4:])
-        
-    try:
-        if path and os.path.exists(os.path.join(app.static_folder, path)):
-            return send_from_directory(app.static_folder, path)
-        return send_from_directory(app.static_folder, 'index.html')
-    except Exception as e:
-        app.logger.error(f"路由錯誤: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-# API 路由
-@app.route('/api/tournaments', methods=['GET'])
+@app.route('/tournaments', methods=['GET'])
 def get_tournaments():
     try:
         app.logger.info("獲取所有賽事列表")
@@ -209,37 +189,22 @@ def get_tournaments():
         app.logger.error(f"獲取賽事列表時發生錯誤: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/tournaments', methods=['POST'])
+@app.route('/tournaments', methods=['POST'])
 def create_tournament():
     try:
-        app.logger.info("開始建立新賽事")
-        
-        # 檢查請求內容
-        if not request.is_json:
-            app.logger.error("請求內容不是 JSON 格式")
-            return jsonify({'error': '請求必須是 JSON 格式'}), 400
-            
         data = request.get_json()
-        if not data or 'name' not in data:
-            app.logger.error("缺少必要欄位")
-            return jsonify({'error': '缺少必要欄位'}), 400
-            
         tournament = Tournament(
             name=data['name'],
             date=datetime.strptime(data['date'], '%Y-%m-%d').date() if 'date' in data else None
         )
-        
         db.session.add(tournament)
         db.session.commit()
-        
-        app.logger.info(f"成功建立賽事: {tournament.name}")
         return jsonify({
             'id': tournament.id,
             'name': tournament.name,
             'date': tournament.date.isoformat() if tournament.date else None,
             'created_at': tournament.created_at.isoformat() if tournament.created_at else None
         }), 201
-        
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"創建賽事時發生錯誤: {str(e)}")
@@ -1300,7 +1265,7 @@ def index():
 
 @app.route('/favicon.ico')
 def favicon():
-    return '', 204  # 返回空回應，狀態碼 204 表示 No Content
+    return send_from_directory(app.static_folder, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 # 獲取分組資料
 @app.route('/tournaments/<int:tournament_id>/groups', methods=['GET'])
