@@ -1002,7 +1002,8 @@ def export_groups_diagram_v2(tournament_id):
         # 檢查賽事是否存在
         tournament = Tournament.query.get(tournament_id)
         if not tournament:
-            return jsonify({'error': '找不到該賽事'}), 404
+            app.logger.error(f"找不到賽事 ID: {tournament_id}")
+            return jsonify({'error': f'找不到賽事 ID: {tournament_id}'}), 404
             
         # 獲取參賽者
         participants = Participant.query.filter_by(tournament_id=tournament_id)\
@@ -1011,66 +1012,75 @@ def export_groups_diagram_v2(tournament_id):
                 Participant.display_order.asc()
             ).all()
             
+        app.logger.info(f"找到 {len(participants)} 位參賽者")
+            
         # 檢查是否有分組資料
         if not any(p.group_code for p in participants):
+            app.logger.warning("沒有找到任何分組資料")
             return jsonify({'error': '沒有分組資料可供匯出'}), 400
             
-        # 生成簡單的 HTML
-        html = f'''
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>{tournament.name} - 分組圖</title>
-            <style>
-                body {{ font-family: Arial; padding: 20px; }}
-                .group {{ 
-                    border: 1px solid #ccc;
-                    margin: 10px;
-                    padding: 10px;
-                    display: inline-block;
-                    min-width: 200px;
-                }}
-                .female {{ background: pink; }}
-            </style>
-        </head>
-        <body>
-            <h1>{tournament.name} - 分組圖</h1>
-        '''
-        
-        # 整理分組資料
-        groups = {}
-        for p in participants:
-            if p.group_code:
-                if p.group_code not in groups:
-                    groups[p.group_code] = []
-                groups[p.group_code].append(p)
-        
-        # 生成分組 HTML
-        for group_code in sorted(groups.keys()):
-            html += f'''
-                <div class="group"><h3>第 {group_code} 組</h3>
+        try:
+            # 生成簡單的 HTML
+            html = f'''
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>{tournament.name} - 分組圖</title>
+                <style>
+                    body {{ font-family: Arial, "Microsoft JhengHei", sans-serif; padding: 20px; }}
+                    .group {{ 
+                        border: 1px solid #ccc;
+                        margin: 10px;
+                        padding: 10px;
+                        display: inline-block;
+                        min-width: 200px;
+                    }}
+                    .female {{ background: pink; }}
+                </style>
+            </head>
+            <body>
+                <h1>{tournament.name} - 分組圖</h1>
             '''
             
-            for p in groups[group_code]:
-                style = ' female' if p.gender == 'F' else ''
-                html += f'''
-                    <div class="player{style}">{p.name} ({p.handicap})</div>
-                '''
+            # 整理分組資料
+            groups = {}
+            for p in participants:
+                if p.group_code:
+                    if p.group_code not in groups:
+                        groups[p.group_code] = []
+                    groups[p.group_code].append(p)
+                    app.logger.info(f"參賽者 {p.name} 被分配到第 {p.group_code} 組")
             
-            html += '</div>'
-        
-        html += '</body></html>'
-        
-        # 建立回應
-        response = make_response(html)
-        response.headers['Content-Type'] = 'text/html; charset=utf-8'
-        response.headers['Content-Disposition'] = f'attachment; filename="{tournament.name}_分組圖.html"'
-        
-        return response
+            # 生成分組 HTML
+            for group_code in sorted(groups.keys()):
+                html += f'<div class="group"><h3>第 {group_code} 組</h3>'
+                for p in groups[group_code]:
+                    style = ' female' if p.gender == 'F' else ''
+                    handicap = p.handicap if p.handicap is not None else 'N/A'
+                    html += f'<div class="player{style}">{p.name} ({handicap})</div>'
+                html += '</div>'
+            
+            html += '</body></html>'
+            
+            # 建立回應
+            response = make_response(html.encode('utf-8'))
+            response.headers.update({
+                'Content-Type': 'text/html; charset=utf-8',
+                'Content-Disposition': f'attachment; filename="{tournament.name}_分組圖.html"'
+            })
+            
+            app.logger.info("分組圖匯出成功")
+            return response
+            
+        except Exception as e:
+            app.logger.error(f"生成 HTML 時發生錯誤: {str(e)}")
+            return jsonify({'error': f'生成分組圖時發生錯誤: {str(e)}'}), 500
         
     except Exception as e:
         app.logger.error(f"匯出分組圖時發生錯誤: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 # 儲存動態分組
