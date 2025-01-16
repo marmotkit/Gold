@@ -420,10 +420,10 @@ def delete_tournament(tournament_id):
             return jsonify({'error': f'找不到賽事 ID: {tournament_id}'}), 404
             
         # 檢查是否有已報到的參賽者
-        has_checked_in = Participant.query.filter_by(
-            tournament_id=tournament_id,
-            checked_in=True
-        ).first() is not None
+        has_checked_in = db.session.query(Participant).filter(
+            Participant.tournament_id == tournament_id,
+            Participant.checked_in.is_(True)
+        ).limit(1).first() is not None
         
         if has_checked_in:
             app.logger.warning(f"賽事 {tournament_id} 有已報到的參賽者，無法刪除")
@@ -439,6 +439,8 @@ def delete_tournament(tournament_id):
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"刪除賽事時發生錯誤: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 # 刪除參賽者
