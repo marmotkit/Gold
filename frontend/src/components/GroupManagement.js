@@ -1073,6 +1073,14 @@ function GroupManagement({ tournament, onSave }) {
 
   // 渲染所有分組
   const renderGroups = () => {
+    if (!groups || Object.keys(groups).length === 0) {
+      return (
+        <Box sx={{ p: 2, textAlign: 'center' }}>
+          <Typography>尚未建立任何分組</Typography>
+        </Box>
+      );
+    }
+
     return (
       <GroupsContainer>
         {Object.entries(groups).map(([groupId, group]) => (
@@ -1084,7 +1092,7 @@ function GroupManagement({ tournament, onSave }) {
               mb: 1 
             }}>
               <Typography variant="subtitle1">
-                {`第 ${groupId} 組 ${group.participants.length} 人`}
+                {`第 ${groupId} 組 ${group?.participants?.length || 0} 人`}
               </Typography>
               <Box>
                 <IconButton size="small" onClick={() => handleMoveGroup(groupId, 'up')}>
@@ -1096,14 +1104,8 @@ function GroupManagement({ tournament, onSave }) {
               </Box>
             </Box>
             
-            {/* 移除最大高度限制 */}
-            <Box sx={{ 
-              width: '100%',
-              // 移除 maxHeight 和 overflow
-              // maxHeight: '400px',
-              // overflow: 'auto'
-            }}>
-              {group.participants.map((participant, index) => (
+            <Box sx={{ width: '100%' }}>
+              {group?.participants?.map((participant, index) => (
                 <ParticipantItem key={participant.id}>
                   {/* 參賽者資訊... */}
                 </ParticipantItem>
