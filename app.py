@@ -98,12 +98,14 @@ def after_request(response):
     try:
         origin = request.headers.get('Origin')
         if origin == "https://gold-1-ccpj.onrender.com":
-            response.headers['Access-Control-Allow-Origin'] = origin
-            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, Content-Disposition, Accept'
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-            response.headers['Access-Control-Max-Age'] = '3600'
-            response.headers['Access-Control-Expose-Headers'] = 'Content-Disposition'
+            response.headers.update({
+                'Access-Control-Allow-Origin': origin,
+                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization, Content-Disposition, Accept',
+                'Access-Control-Allow-Credentials': 'true',
+                'Access-Control-Max-Age': '3600',
+                'Access-Control-Expose-Headers': 'Content-Disposition'
+            })
         return response
     except Exception as e:
         app.logger.error(f"處理 CORS 標頭時發生錯誤：{str(e)}")
