@@ -221,6 +221,51 @@ def get_tournament_participants(tournament_id):
         app.logger.error(f"獲取參賽者列表時發生錯誤: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+def parse_handicap(value):
+    """解析差點值"""
+    if pd.isna(value):
+        return None
+    
+    try:
+        # 如果是數字，直接返回
+        if isinstance(value, (int, float)):
+            return float(value)
+        
+        # 如果是字串，清理並轉換
+        if isinstance(value, str):
+            # 移除所有空白字符
+            value = re.sub(r'\s+', '', value)
+            # 如果是空字串，返回 None
+            if not value:
+                return None
+            # 轉換為浮點數
+            return float(value)
+        
+        return None
+    except (ValueError, TypeError):
+        return None
+
+def generate_registration_number():
+    """生成報名序號"""
+    # 獲取當前最大序號
+    max_number = db.session.query(func.max(Participant.registration_number)).scalar()
+    
+    if not max_number:
+        return 'A01'
+        
+    # 提取數字部分
+    try:
+        number = int(max_number[1:])
+        return f'A{(number + 1):02d}'
+    except (ValueError, IndexError):
+        return 'A01'
+
+def get_next_display_order(tournament_id):
+    """獲取下一個顯示順序"""
+    max_order = db.session.query(func.max(Participant.display_order))\
+        .filter_by(tournament_id=tournament_id).scalar()
+    return (max_order or 0) + 1
+
 # 匯入參賽者
 @app.route('/tournaments/<int:tournament_id>/participants/import', methods=['POST'])
 def import_participants(tournament_id):
@@ -235,16 +280,26 @@ def import_participants(tournament_id):
         # 讀取 Excel 文件
         df = pd.read_excel(file)
         
+        # 檢查必要欄位
+        required_columns = ['姓名', '性別', '差點']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            return jsonify({'error': f'缺少必要欄位: {", ".join(missing_columns)}'}), 400
+        
         # 處理每一行數據
         imported_count = 0
         for _, row in df.iterrows():
+            # 跳過空白行
+            if pd.isna(row['姓名']):
+                continue
+                
             participant = Participant(
                 tournament_id=tournament_id,
-                name=row.get('姓名', ''),
-                gender=row.get('性別', ''),
-                handicap=parse_handicap(row.get('差點')),
-                member_id=str(row.get('會員編號', '')),
-                member_number=str(row.get('會員證號', '')),
+                name=str(row['姓名']).strip(),
+                gender='F' if str(row['性別']).strip().upper() in ['F', '女'] else 'M',
+                handicap=parse_handicap(row['差點']),
+                member_id=str(row.get('會員編號', '')).strip() if not pd.isna(row.get('會員編號', '')) else None,
+                member_number=str(row.get('會員證號', '')).strip() if not pd.isna(row.get('會員證號', '')) else None,
                 registration_number=generate_registration_number(),
                 display_order=get_next_display_order(tournament_id)
             )
