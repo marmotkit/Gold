@@ -28,8 +28,51 @@ import DragHandleIcon from '@mui/icons-material/DragHandle';
 import AddIcon from '@mui/icons-material/Add';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import config from '../config';
+import styled from '@emotion/styled';
 
 const API_URL = config.API_URL;
+
+// 修改分組卡片的樣式
+const GroupCard = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(2),
+  margin: theme.spacing(1),
+  minWidth: '300px',  // 縮小最小寬度
+  maxWidth: '350px',  // 限制最大寬度
+  display: 'flex',
+  flexDirection: 'column',
+  gap: theme.spacing(1),
+  '& .MuiTypography-root': {
+    fontSize: '0.9rem',  // 縮小字體
+  },
+  '& .MuiButton-root': {
+    fontSize: '0.8rem',  // 縮小按鈕字體
+    padding: '4px 8px',  // 縮小按鈕padding
+  }
+}));
+
+// 修改分組容器的樣式
+const GroupsContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: theme.spacing(2),
+  justifyContent: 'flex-start',
+  padding: theme.spacing(2),
+  '& > *': {
+    flex: '0 0 auto',  // 防止元素被拉伸
+  }
+}));
+
+// 修改參賽者項目的樣式
+const ParticipantItem = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(1),
+  padding: theme.spacing(0.5),  // 縮小padding
+  fontSize: '0.85rem',  // 縮小字體
+  '& .MuiSvgIcon-root': {
+    fontSize: '1rem',  // 縮小圖標
+  }
+}));
 
 function ParticipantCard({ participant, onDelete, onDragStart, onDragEnd, isDragging, isOverflow, onCheckIn }) {
   return (
