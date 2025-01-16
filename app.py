@@ -1065,9 +1065,10 @@ def export_groups_diagram_v2(tournament_id):
             
             # 建立回應
             response = make_response(html.encode('utf-8'))
+            filename = tournament.name.encode('utf-8').decode('utf-8')
             response.headers.update({
                 'Content-Type': 'text/html; charset=utf-8',
-                'Content-Disposition': f'attachment; filename="{tournament.name}_分組圖.html"'
+                'Content-Disposition': f'attachment; filename*=UTF-8\'\'{filename}_分組圖.html'
             })
             
             app.logger.info("分組圖匯出成功")
