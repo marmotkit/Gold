@@ -40,7 +40,7 @@ from io import BytesIO
 import pandas as pd
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill
-from flask import Flask, request, jsonify, send_file, send_from_directory
+from flask import Flask, request, jsonify, send_file, send_from_directory, make_response
 from flask_cors import CORS
 from sqlalchemy import func
 from config import config
@@ -1164,7 +1164,7 @@ def export_groups_diagram(tournament_id):
         
         # 創建回應
         try:
-            response = app.make_response(html_content)
+            response = make_response(html_content)
             response.headers.update({
                 'Content-Type': 'text/html; charset=utf-8',
                 'Content-Disposition': f'attachment; filename="{tournament.name}_分組圖.html"',
@@ -1172,6 +1172,11 @@ def export_groups_diagram(tournament_id):
                 'Access-Control-Allow-Methods': 'GET',
                 'Access-Control-Allow-Headers': 'Content-Type'
             })
+            
+            # 添加 CORS 標頭
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Methods', 'GET')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
             
             app.logger.info("分組圖匯出成功")
             return response
