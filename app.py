@@ -331,10 +331,16 @@ def import_participants(tournament_id):
                     'display_order': index
                 }
                 
-                # 如果有會員編號欄位
+                # 處理預分組編號
+                if '預分組編號' in df.columns:
+                    pre_group = str(row['預分組編號']).strip() if pd.notna(row['預分組編號']) else None
+                    participant_data['pre_group_code'] = pre_group
+                    app.logger.info(f"參賽者 {name} 的預分組編號: {pre_group}")
+
+                # 處理會員編號
                 if '會員編號' in df.columns:
-                    member_id = str(row['會員編號']).strip() if pd.notna(row['會員編號']) else None
-                    participant_data['member_number'] = member_id  # 使用 member_number 而不是 member_id
+                    member_number = str(row['會員編號']).strip() if pd.notna(row['會員編號']) else None
+                    participant_data['member_number'] = member_number
 
                 participants_data.append(participant_data)
                 
@@ -1045,6 +1051,16 @@ def export_groups_diagram(tournament_id):
                     font-size: 0.9em;
                     margin-left: 10px;
                 }}
+                .gender-icon {{
+                    margin-right: 5px;
+                    font-weight: bold;
+                }}
+                .gender-icon.female {{
+                    color: #ff69b4;
+                }}
+                .gender-icon.male {{
+                    color: #4169e1;
+                }}
                 @media print {{
                     body {{ margin: 0; }}
                     .groups-container {{ page-break-inside: avoid; }}
@@ -1078,10 +1094,15 @@ def export_groups_diagram(tournament_id):
             
             for p in group:
                 gender_class = 'female' if p.gender == 'F' else ''
+                gender_icon = '♀' if p.gender == 'F' else '♂'
+                gender_icon_class = 'female' if p.gender == 'F' else 'male'
                 handicap = p.handicap if p.handicap is not None else 'N/A'
                 html_content += f"""
                     <div class="participant {gender_class}">
-                        <span>{p.name}</span>
+                        <span>
+                            <span class="gender-icon {gender_icon_class}">{gender_icon}</span>
+                            {p.name}
+                        </span>
                         <span class="handicap">{handicap}</span>
                     </div>
                 """
@@ -1309,6 +1330,165 @@ with app.app_context():
         app.logger.error(f"數據庫更新失敗: {str(e)}")
         import traceback
         app.logger.error(traceback.format_exc())
+
+@app.route('/tournaments/<int:tournament_id>/export_groups_pdf', methods=['GET'])
+def export_groups_pdf(tournament_id):
+    try:
+        app.logger.info(f"開始匯出賽事 {tournament_id} 的分組 PDF")
+        
+        # 檢查賽事是否存在
+        tournament = Tournament.query.get_or_404(tournament_id)
+        
+        # 獲取所有參賽者並按組別排序
+        participants = Participant.query.filter_by(tournament_id=tournament_id)\
+            .order_by(
+                func.cast(Participant.group_code, db.Integer).asc(),
+                Participant.display_order.asc()
+            ).all()
+            
+        app.logger.info(f"找到 {len(participants)} 位參賽者")
+            
+        # 生成 HTML 內容
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>{tournament.name} - 分組表</title>
+            <style>
+                @page {{ size: A4 landscape; margin: 1cm; }}
+                body {{ 
+                    font-family: "Microsoft JhengHei", Arial, sans-serif;
+                    margin: 20px;
+                    background-color: white;
+                }}
+                .title {{ 
+                    text-align: center;
+                    margin-bottom: 20px;
+                    font-size: 24px;
+                    font-weight: bold;
+                }}
+                .date {{ 
+                    text-align: right;
+                    margin-bottom: 20px;
+                    color: #666;
+                }}
+                .groups-container {{ 
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                    gap: 15px;
+                    justify-content: start;
+                }}
+                .group-card {{
+                    border: 1px solid #ddd;
+                    border-radius: 8px;
+                    padding: 12px;
+                    background-color: #fff;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    break-inside: avoid;
+                }}
+                .group-title {{
+                    font-weight: bold;
+                    margin-bottom: 8px;
+                    padding-bottom: 4px;
+                    border-bottom: 2px solid #4a90e2;
+                    color: #2c3e50;
+                    font-size: 14px;
+                }}
+                .participant {{
+                    margin: 6px 0;
+                    padding: 6px;
+                    border-radius: 4px;
+                    background-color: #f8f9fa;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }}
+                .female {{
+                    background-color: #ffe6e6;
+                }}
+                .handicap {{
+                    color: #666;
+                    font-size: 0.9em;
+                    margin-left: 8px;
+                }}
+                .gender-icon {{
+                    margin-right: 4px;
+                    font-weight: bold;
+                }}
+                .gender-icon.female {{
+                    color: #ff69b4;
+                }}
+                .gender-icon.male {{
+                    color: #4169e1;
+                }}
+                @media print {{
+                    body {{ margin: 0; }}
+                    .groups-container {{ page-break-inside: avoid; }}
+                    .group-card {{ break-inside: avoid; }}
+                }}
+            </style>
+        </head>
+        <body>
+            <h1 class="title">{tournament.name} - 分組表</h1>
+            <div class="date">匯出日期: {datetime.now().strftime('%Y/%m/%d')}</div>
+            <div class="groups-container">
+        """
+        
+        # 按組別整理參賽者
+        groups = {}
+        for p in participants:
+            if p.group_code:
+                group_code = str(p.group_code)
+                if group_code not in groups:
+                    groups[group_code] = []
+                groups[group_code].append(p)
+                app.logger.info(f"參賽者 {p.name} 被分配到第 {group_code} 組")
+        
+        # 生成每個組別的 HTML
+        for group_code in sorted(groups.keys(), key=lambda x: int(x) if x.isdigit() else float('inf')):
+            group = groups[group_code]
+            html_content += f"""
+                <div class="group-card">
+                    <div class="group-title">第 {group_code} 組 ({len(group)} 人)</div>
+            """
+            
+            for p in group:
+                gender_class = 'female' if p.gender == 'F' else ''
+                gender_icon = '♀' if p.gender == 'F' else '♂'
+                gender_icon_class = 'female' if p.gender == 'F' else 'male'
+                handicap = p.handicap if p.handicap is not None else 'N/A'
+                html_content += f"""
+                    <div class="participant {gender_class}">
+                        <span>
+                            <span class="gender-icon {gender_icon_class}">{gender_icon}</span>
+                            {p.name}
+                        </span>
+                        <span class="handicap">{handicap}</span>
+                    </div>
+                """
+            
+            html_content += "</div>"
+        
+        html_content += """
+            </div>
+        </body>
+        </html>
+        """
+        
+        # 創建回應
+        response = app.make_response(html_content)
+        response.headers['Content-Type'] = 'text/html; charset=utf-8'
+        response.headers['Content-Disposition'] = f'attachment; filename="{tournament.name}_分組表.pdf"'
+        
+        app.logger.info("分組表 PDF 匯出成功")
+        return response
+        
+    except Exception as e:
+        app.logger.error(f"匯出分組表 PDF 時發生錯誤：{str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.logger.info('應用啟動中...')
