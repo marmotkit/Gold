@@ -22,6 +22,7 @@ import {
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import config from '../config';
+import { buildApiUrl } from '../utils/api';
 import { debounce } from 'lodash';
 
 const API_URL = config.API_URL;
