@@ -87,24 +87,29 @@ init_extensions(app)
 db.init_app(app)
 migrate = Migrate(app, db)
 
-# 修改 CORS 設定
+# 設置 CORS
 CORS(app, resources={
     r"/*": {
-        "origins": [
-            "https://gold-1-ccpj.onrender.com",  # 前端網址
-            "http://localhost:3000"  # 本地開發用
-        ],
+        "origins": ["https://gold-1-ccpj.onrender.com", "http://localhost:3000"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"]
+        "allow_headers": ["Content-Type", "Authorization", "Content-Disposition", "Accept"],
+        "expose_headers": ["Content-Disposition"],
+        "supports_credentials": True
     }
 })
 
 @app.after_request
 def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', 'https://gold-1-ccpj.onrender.com')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    origin = request.headers.get('Origin')
+    if origin in ["https://gold-1-ccpj.onrender.com", "http://localhost:3000"]:
+        response.headers.update({
+            'Access-Control-Allow-Origin': origin,
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, Content-Disposition, Accept',
+            'Access-Control-Allow-Credentials': 'true',
+            'Access-Control-Max-Age': '3600',
+            'Access-Control-Expose-Headers': 'Content-Disposition'
+        })
     return response
 
 # 確保靜態文件夾存在
@@ -128,24 +133,6 @@ def create_static_folder():
 # 初始化 Socket.IO
 sio = socketio.Server(cors_allowed_origins=["https://gold-1-ccpj.onrender.com"])
 socket_app = socketio.WSGIApp(sio, app)  # 使用不同的變數名稱
-
-@app.after_request
-def after_request(response):
-    try:
-        origin = request.headers.get('Origin')
-        if origin == "https://gold-1-ccpj.onrender.com":
-            response.headers.update({
-                'Access-Control-Allow-Origin': origin,
-                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization, Content-Disposition, Accept',
-                'Access-Control-Allow-Credentials': 'true',
-                'Access-Control-Max-Age': '3600',
-                'Access-Control-Expose-Headers': 'Content-Disposition'
-            })
-        return response
-    except Exception as e:
-        app.logger.error(f"處理 CORS 標頭時發生錯誤：{str(e)}")
-        return response
 
 # 添加全局錯誤處理
 @app.errorhandler(500)
