@@ -71,7 +71,7 @@ config_name = os.environ.get('FLASK_ENV', 'production')
 
 # 初始化 Flask 應用
 app = Flask(__name__, 
-    static_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'frontend/build'),
+    static_folder='static',  # 改用 static 文件夾
     static_url_path='')
 app.config.from_object(config[config_name])
 config[config_name].init_app(app)
@@ -179,21 +179,20 @@ def serve(path):
             # API 請求不應該由這個處理器處理
             return jsonify({'error': 'Not Found'}), 404
             
+        # 先嘗試提供靜態文件
         static_file_path = os.path.join(app.static_folder, path)
-        app.logger.info(f"嘗試訪問文件: {static_file_path}")
-        
-        if path != "" and os.path.exists(static_file_path):
+        if path and os.path.exists(static_file_path):
             app.logger.info(f"提供靜態文件: {path}")
             return send_from_directory(app.static_folder, path)
             
-        # 檢查 index.html 是否存在
+        # 如果不是靜態文件，返回 index.html
         index_path = os.path.join(app.static_folder, 'index.html')
         if os.path.exists(index_path):
             app.logger.info("提供 index.html")
             return send_from_directory(app.static_folder, 'index.html')
-        else:
-            app.logger.error(f"找不到 index.html: {index_path}")
-            return jsonify({'error': 'Frontend not built'}), 404
+            
+        app.logger.error("找不到前端文件")
+        return jsonify({'error': 'Frontend files not found'}), 404
             
     except Exception as e:
         app.logger.error(f"處理前端路由時發生錯誤: {str(e)}")
@@ -1021,7 +1020,7 @@ def export_groups(tournament_id):
                 row_idx += 1
             
             # 添加參賽者資料
-            gender = "女" if p.gender == "F" else "男"
+            gender = "女" if p.gender == 'F' else "男"
             ws_list.append([p.name, gender, p.notes or ''])
             
             # 如果是女生，設置粉紅色背景

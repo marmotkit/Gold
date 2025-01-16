@@ -1,27 +1,9 @@
 services:
   - type: web
-    name: golf-backend
+    name: golf-tournament
     env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --timeout 120 --workers 4 --threads 2 --keep-alive 65
+    buildCommand: ./build.sh
+    startCommand: gunicorn app:socket_app
     envVars:
-      - key: FLASK_ENV
-        value: production
-      - key: DATABASE_URL
-        fromDatabase:
-          name: golf-db
-          property: connectionString
-      - key: PYTHONUNBUFFERED
-        value: "true"
-      - key: GUNICORN_CMD_ARGS
-        value: "--access-logfile - --error-logfile - --capture-output --enable-stdio-inheritance"
-    scaling:
-      minInstances: 1
-      maxInstances: 1
-      targetMemoryPercent: 80
-      targetCPUPercent: 80
-
-databases:
-  - name: golf-db
-    plan: free
-    ipAllowList: []
+      - key: PYTHON_VERSION
+        value: 3.9.18
