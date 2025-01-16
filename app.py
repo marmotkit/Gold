@@ -51,6 +51,7 @@ import tempfile
 from flask_migrate import Migrate, upgrade
 import logging
 from urllib.parse import quote
+import socketio
 
 # 配置日誌
 logging.basicConfig(
@@ -526,17 +527,17 @@ def check_in_participant(tournament_id, participant_id):
             db.session.commit()
             app.logger.info(f"參賽者 {participant.name} 報到成功")
             
+            # 發送 WebSocket 事件通知所有客戶端
+            socketio.emit('participant_updated', {
+                'tournament_id': tournament_id,
+                'participant': participant.to_dict()
+            })
+            
             # 返回完整的參賽者資料，包括更新後的狀態
             return jsonify({
                 'success': True,
                 'message': '報到成功',
-                'participant': {
-                    'id': participant.id,
-                    'name': participant.name,
-                    'checked_in': participant.checked_in,
-                    'check_in_time': participant.check_in_time.isoformat() if participant.check_in_time else None,
-                    **participant.to_dict()  # 包含其他欄位
-                }
+                'participant': participant.to_dict()
             })
             
         except Exception as e:
@@ -587,17 +588,17 @@ def cancel_check_in(tournament_id, participant_id):
             db.session.commit()
             app.logger.info(f"參賽者 {participant.name} 取消報到成功")
             
+            # 發送 WebSocket 事件通知所有客戶端
+            socketio.emit('participant_updated', {
+                'tournament_id': tournament_id,
+                'participant': participant.to_dict()
+            })
+            
             # 返回完整的參賽者資料，包括更新後的狀態
             return jsonify({
                 'success': True,
                 'message': '取消報到成功',
-                'participant': {
-                    'id': participant.id,
-                    'name': participant.name,
-                    'checked_in': participant.checked_in,
-                    'check_in_time': None,
-                    **participant.to_dict()  # 包含其他欄位
-                }
+                'participant': participant.to_dict()
             })
             
         except Exception as e:
