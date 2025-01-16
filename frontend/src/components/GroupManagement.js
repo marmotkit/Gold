@@ -616,40 +616,55 @@ function GroupManagement({ tournament, onSave }) {
     try {
       setIsLoading(true);
 
-      // 發送自動分組請求
-      const response = await fetch(
-        `${API_URL}/tournaments/${tournament.id}/auto-group`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        }
-      );
-
-      const result = await response.json();
-      
+      // 獲取所有參賽者
+      const response = await fetch(`${API_URL}/tournaments/${tournament.id}/participants`);
       if (!response.ok) {
-        throw new Error(result.error || '自動分組失敗');
+        throw new Error('獲取參賽者失敗');
+      }
+      const participants = await response.json();
+      
+      // 按差點排序
+      const sortedParticipants = [...participants].sort((a, b) => {
+        const handicapA = a.handicap === null ? 999 : a.handicap;
+        const handicapB = b.handicap === null ? 999 : b.handicap;
+        return handicapA - handicapB;
+      });
+
+      // 計算每組人數
+      const participantsPerGroup = 4;
+      const totalGroups = Math.ceil(sortedParticipants.length / participantsPerGroup);
+
+      // 建立分組
+      const newGroups = {};
+      for (let i = 0; i < totalGroups; i++) {
+        const groupNumber = (i + 1).toString();
+        const startIndex = i * participantsPerGroup;
+        const groupParticipants = sortedParticipants.slice(
+          startIndex,
+          startIndex + participantsPerGroup
+        );
+        
+        newGroups[groupNumber] = {
+          participants: groupParticipants
+        };
       }
 
-      console.log('自動分組結果:', result);
+      console.log('自動分組結果:', newGroups);
+      setGroups(newGroups);
+      setGroupOrder(Object.keys(newGroups).sort((a, b) => parseInt(a) - parseInt(b)));
+      setHasUnsavedChanges(true);
 
-      // 重新載入參賽者數據
-      await loadParticipants();
-      
-      // 更新前端狀態
       setSnackbar({
         open: true,
-        message: '自動分組成功',
+        message: '自動分組完成',
         severity: 'success'
       });
-      setHasUnsavedChanges(true);
+
     } catch (error) {
       console.error('自動分組錯誤:', error);
       setSnackbar({
         open: true,
-        message: error.message || '自動分組失敗',
+        message: '自動分組失敗',
         severity: 'error'
       });
     } finally {
