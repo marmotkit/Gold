@@ -311,6 +311,12 @@ def import_participants(tournament_id):
     try:
         app.logger.info(f"開始匯入賽事 {tournament_id} 的參賽者")
         
+        # 檢查賽事是否存在
+        tournament = Tournament.query.get(tournament_id)
+        if not tournament:
+            app.logger.error(f"找不到賽事 ID: {tournament_id}")
+            return jsonify({'error': f'找不到賽事 ID: {tournament_id}'}), 404
+        
         if 'file' not in request.files:
             app.logger.error("未找到上傳的檔案")
             return jsonify({'error': '未找到上傳的檔案'}), 400
@@ -374,6 +380,10 @@ def import_participants(tournament_id):
 
         # 批次新增參賽者
         try:
+            # 先刪除該賽事的所有參賽者
+            Participant.query.filter_by(tournament_id=tournament_id).delete()
+            
+            # 新增新的參賽者
             for data in participants_data:
                 participant = Participant(**data)
                 db.session.add(participant)
