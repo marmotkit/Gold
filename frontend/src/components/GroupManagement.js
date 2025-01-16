@@ -1074,94 +1074,44 @@ function GroupManagement({ tournament, onSave }) {
   // 渲染所有分組
   const renderGroups = () => {
     return (
-      <Grid container spacing={3}>
-        {groupOrder.map((groupCode, index) => (
-          renderGroup(groupCode, index)
-        ))}
-
-        {/* 未分組的參賽者 */}
-        {ungroupedParticipants.length > 0 && (
-          <Grid item xs={12}>
-            <Paper 
-              elevation={3}
-              sx={{
-                p: 2,
-                border: dragOverGroup === '未分組' ? '2px dashed #2196f3' : '1px solid rgba(0, 0, 0, 0.12)',
-                backgroundColor: dragOverGroup === '未分組' ? 'rgba(33, 150, 243, 0.08)' : 'background.paper'
-              }}
-              onDragOver={(e) => handleDragOver(e, '未分組')}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, '未分組')}
-            >
-              <Typography variant="h6" gutterBottom>
-                未分組 ({ungroupedParticipants.length})
+      <GroupsContainer>
+        {Object.entries(groups).map(([groupId, group]) => (
+          <GroupCard key={groupId}>
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              mb: 1 
+            }}>
+              <Typography variant="subtitle1">
+                {`第 ${groupId} 組 ${group.participants.length} 人`}
               </Typography>
-              <Grid container spacing={1}>
-                {ungroupedParticipants.map((participant) => (
-                  <Grid item xs={12} sm={6} md={3} key={`ungrouped-${participant.id}`}>
-                    <Box 
-                      data-participant-id={participant.id}
-                      sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        p: 1,
-                        opacity: draggedParticipant?.id === participant.id ? 0.5 : 1,
-                        cursor: 'move',
-                        '&:hover': {
-                          bgcolor: 'action.hover'
-                        }
-                      }}
-                      draggable={true}
-                      onDragStart={(e) => handleDragStart(e, participant)}
-                      onDragEnd={handleDragEnd}
-                    >
-                      <DragHandleIcon sx={{ mr: 1, color: 'action.active', cursor: 'move' }} />
-                      <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, minWidth: 0 }}>
-                        <Typography 
-                          sx={{ 
-                            flexGrow: 1,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap'
-                          }}
-                        >
-                          {participant.name}
-                        </Typography>
-                        {participant.check_in_status === 'checked_in' && (
-                          <Chip 
-                            label="已報到" 
-                            size="small" 
-                            color="success" 
-                            sx={{ mx: 1 }}
-                          />
-                        )}
-                        <Box
-                          component="span"
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            color: participant.gender === 'F' ? '#f06292' : '#2196f3',
-                            mx: 1
-                          }}
-                        >
-                          {participant.gender === 'F' ? (
-                            <FemaleIcon fontSize="small" />
-                          ) : (
-                            <MaleIcon fontSize="small" />
-                          )}
-                        </Box>
-                        <Typography sx={{ ml: 1, whiteSpace: 'nowrap' }}>
-                          差點: {participant.handicap}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Grid>
-                ))}
-              </Grid>
-            </Paper>
-          </Grid>
-        )}
-      </Grid>
+              <Box>
+                <IconButton size="small" onClick={() => handleMoveGroup(groupId, 'up')}>
+                  <KeyboardArrowUpIcon />
+                </IconButton>
+                <IconButton size="small" onClick={() => handleMoveGroup(groupId, 'down')}>
+                  <KeyboardArrowDownIcon />
+                </IconButton>
+              </Box>
+            </Box>
+            
+            {/* 移除最大高度限制 */}
+            <Box sx={{ 
+              width: '100%',
+              // 移除 maxHeight 和 overflow
+              // maxHeight: '400px',
+              // overflow: 'auto'
+            }}>
+              {group.participants.map((participant, index) => (
+                <ParticipantItem key={participant.id}>
+                  {/* 參賽者資訊... */}
+                </ParticipantItem>
+              ))}
+            </Box>
+          </GroupCard>
+        ))}
+      </GroupsContainer>
     );
   };
 
