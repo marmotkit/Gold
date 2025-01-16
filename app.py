@@ -1020,28 +1020,56 @@ def export_groups_diagram_v2(tournament_id):
             return jsonify({'error': '沒有分組資料可供匯出'}), 400
             
         try:
-            # 生成簡單的 HTML
-            html = f'''
-            <!DOCTYPE html>
-            <html>
+            # 生成 HTML (添加 DOCTYPE 宣告)
+            html = '''<!DOCTYPE html>
+            <html lang="zh-TW">
             <head>
                 <meta charset="UTF-8">
-                <title>{tournament.name} - 分組圖</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>{title}</title>
                 <style>
-                    body {{ font-family: Arial, "Microsoft JhengHei", sans-serif; padding: 20px; }}
+                    body {{ 
+                        font-family: Arial, "Microsoft JhengHei", sans-serif; 
+                        padding: 20px;
+                        margin: 0;
+                        line-height: 1.6;
+                    }}
                     .group {{ 
                         border: 1px solid #ccc;
                         margin: 10px;
-                        padding: 10px;
+                        padding: 15px;
                         display: inline-block;
                         min-width: 200px;
+                        border-radius: 8px;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                     }}
-                    .female {{ background: pink; }}
+                    .female {{ 
+                        background: #ffe6e6;
+                        border-radius: 4px;
+                        padding: 4px 8px;
+                    }}
+                    h1 {{
+                        text-align: center;
+                        color: #333;
+                        margin-bottom: 30px;
+                    }}
+                    h3 {{
+                        color: #2c3e50;
+                        margin: 0 0 15px 0;
+                        border-bottom: 2px solid #3498db;
+                        padding-bottom: 5px;
+                    }}
+                    .player {{
+                        margin: 8px 0;
+                        padding: 6px;
+                        background: #f8f9fa;
+                        border-radius: 4px;
+                    }}
                 </style>
             </head>
             <body>
-                <h1>{tournament.name} - 分組圖</h1>
-            '''
+                <h1>{title}</h1>
+            '''.format(title=f"{tournament.name} - 分組圖")
             
             # 整理分組資料
             groups = {}
