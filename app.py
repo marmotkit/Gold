@@ -97,31 +97,35 @@ CORS(app, resources={
 
 @app.after_request
 def after_request(response):
-    origin = request.headers.get('Origin')
-    if origin in ["https://gold-1-ccpj.onrender.com", "https://gold-v00p.onrender.com"]:
-        # 移除所有現有的 CORS headers
-        headers_to_remove = [
-            'Access-Control-Allow-Origin',
-            'Access-Control-Allow-Methods',
-            'Access-Control-Allow-Headers',
-            'Access-Control-Allow-Credentials',
-            'Access-Control-Max-Age',
-            'Access-Control-Expose-Headers'
-        ]
+    try:
+        origin = request.headers.get('Origin')
+        if origin in ["https://gold-1-ccpj.onrender.com", "https://gold-v00p.onrender.com"]:
+            # 移除所有現有的 CORS headers
+            headers_to_remove = [
+                'Access-Control-Allow-Origin',
+                'Access-Control-Allow-Methods',
+                'Access-Control-Allow-Headers',
+                'Access-Control-Allow-Credentials',
+                'Access-Control-Max-Age',
+                'Access-Control-Expose-Headers'
+            ]
+            
+            for header in headers_to_remove:
+                if header in response.headers:
+                    del response.headers[header]
+            
+            # 添加新的 CORS headers
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, Content-Disposition, Accept'
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Max-Age'] = '3600'
+            response.headers['Access-Control-Expose-Headers'] = 'Content-Disposition'
         
-        for header in headers_to_remove:
-            if header in response.headers:
-                del response.headers[header]
-        
-        # 添加新的 CORS headers
-        response.headers['Access-Control-Allow-Origin'] = origin
-        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, Content-Disposition, Accept'
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
-        response.headers['Access-Control-Max-Age'] = '3600'
-        response.headers['Access-Control-Expose-Headers'] = 'Content-Disposition'
-    
-    return response
+        return response
+    except Exception as e:
+        app.logger.error(f"處理 CORS 標頭時發生錯誤：{str(e)}")
+        return response
 
 # 添加全局錯誤處理
 @app.errorhandler(500)
@@ -1011,19 +1015,22 @@ def export_groups(tournament_id):
 # 匯出分組圖
 @app.route('/tournaments/<int:tournament_id>/export_groups_diagram', methods=['GET', 'OPTIONS'])
 def export_groups_diagram(tournament_id):
-    # 處理 OPTIONS 請求
-    if request.method == 'OPTIONS':
-        response = make_response()
-        response.headers.update({
-            'Access-Control-Allow-Origin': 'https://gold-1-ccpj.onrender.com',
-            'Access-Control-Allow-Methods': 'GET, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Accept',
-            'Access-Control-Allow-Credentials': 'true',
-            'Access-Control-Max-Age': '3600'
-        })
-        return response
-
     try:
+        # 處理 OPTIONS 請求
+        if request.method == 'OPTIONS':
+            response = make_response()
+            origin = request.headers.get('Origin')
+            if origin in ["https://gold-1-ccpj.onrender.com", "https://gold-v00p.onrender.com"]:
+                response.headers.update({
+                    'Access-Control-Allow-Origin': origin,
+                    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type, Accept',
+                    'Access-Control-Allow-Credentials': 'true',
+                    'Access-Control-Max-Age': '3600',
+                    'Access-Control-Expose-Headers': 'Content-Disposition'
+                })
+            return response
+
         app.logger.info(f"開始匯出賽事 {tournament_id} 的分組圖")
         
         # 檢查賽事是否存在
@@ -1183,13 +1190,19 @@ def export_groups_diagram(tournament_id):
             response = make_response(html_content)
             response.headers.update({
                 'Content-Type': 'text/html; charset=utf-8',
-                'Content-Disposition': f'attachment; filename="{tournament.name}_分組圖.html"',
-                'Access-Control-Allow-Origin': 'https://gold-1-ccpj.onrender.com',
-                'Access-Control-Allow-Methods': 'GET, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type, Accept',
-                'Access-Control-Allow-Credentials': 'true',
-                'Access-Control-Expose-Headers': 'Content-Disposition'
+                'Content-Disposition': f'attachment; filename="{tournament.name}_分組圖.html"'
             })
+            
+            # 添加 CORS 標頭
+            origin = request.headers.get('Origin')
+            if origin in ["https://gold-1-ccpj.onrender.com", "https://gold-v00p.onrender.com"]:
+                response.headers.update({
+                    'Access-Control-Allow-Origin': origin,
+                    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type, Accept',
+                    'Access-Control-Allow-Credentials': 'true',
+                    'Access-Control-Expose-Headers': 'Content-Disposition'
+                })
             
             app.logger.info("分組圖匯出成功")
             return response
