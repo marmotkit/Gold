@@ -399,6 +399,7 @@ function GroupManagement({ tournament, onSave }) {
         method: 'GET',
         headers: {
           'Accept': 'text/html, application/json',
+          'Content-Type': 'application/json',
         },
         credentials: 'include',
         mode: 'cors'
@@ -409,7 +410,7 @@ function GroupManagement({ tournament, onSave }) {
           const errorData = await response.json();
           throw new Error(errorData.error || '匯出分組圖失敗');
         }
-        throw new Error('匯出分組圖失敗');
+        throw new Error(`匯出分組圖失敗 (${response.status})`);
       }
 
       // 取得檔案名稱

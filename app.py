@@ -1009,8 +1009,20 @@ def export_groups(tournament_id):
         return jsonify({'error': str(e)}), 500
 
 # 匯出分組圖
-@app.route('/tournaments/<int:tournament_id>/export_groups_diagram', methods=['GET'])
+@app.route('/tournaments/<int:tournament_id>/export_groups_diagram', methods=['GET', 'OPTIONS'])
 def export_groups_diagram(tournament_id):
+    # 處理 OPTIONS 請求
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response.headers.update({
+            'Access-Control-Allow-Origin': 'https://gold-1-ccpj.onrender.com',
+            'Access-Control-Allow-Methods': 'GET, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Accept',
+            'Access-Control-Allow-Credentials': 'true',
+            'Access-Control-Max-Age': '3600'
+        })
+        return response
+
     try:
         app.logger.info(f"開始匯出賽事 {tournament_id} 的分組圖")
         
@@ -1173,8 +1185,9 @@ def export_groups_diagram(tournament_id):
                 'Content-Type': 'text/html; charset=utf-8',
                 'Content-Disposition': f'attachment; filename="{tournament.name}_分組圖.html"',
                 'Access-Control-Allow-Origin': 'https://gold-1-ccpj.onrender.com',
-                'Access-Control-Allow-Methods': 'GET',
+                'Access-Control-Allow-Methods': 'GET, OPTIONS',
                 'Access-Control-Allow-Headers': 'Content-Type, Accept',
+                'Access-Control-Allow-Credentials': 'true',
                 'Access-Control-Expose-Headers': 'Content-Disposition'
             })
             
