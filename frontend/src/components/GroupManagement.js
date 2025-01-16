@@ -398,13 +398,17 @@ function GroupManagement({ tournament, onSave }) {
       const response = await fetch(`${API_URL}/tournaments/${tournament.id}/export_groups_diagram`, {
         method: 'GET',
         headers: {
-          'Accept': 'text/html',
-        }
+          'Accept': 'text/html, application/json',
+        },
+        credentials: 'include'
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '匯出分組圖失敗');
+        if (response.headers.get('Content-Type')?.includes('application/json')) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || '匯出分組圖失敗');
+        }
+        throw new Error('匯出分組圖失敗');
       }
 
       // 取得檔案名稱

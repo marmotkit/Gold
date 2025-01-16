@@ -83,12 +83,12 @@ init_extensions(app)
 db.init_app(app)
 migrate = Migrate(app, db)
 
-# 初始化 CORS
+# 修改 CORS 設定
 CORS(app, resources={
     r"/*": {
-        "origins": config[config_name].CORS_ORIGINS,
+        "origins": ["https://gold-1-ccpj.onrender.com", "https://gold-v00p.onrender.com"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization", "Content-Disposition"],
+        "allow_headers": ["Content-Type", "Authorization", "Content-Disposition", "Accept"],
         "expose_headers": ["Content-Disposition"],
         "supports_credentials": True,
         "max_age": 600
@@ -1167,14 +1167,12 @@ def export_groups_diagram(tournament_id):
             response = make_response(html_content)
             response.headers.update({
                 'Content-Type': 'text/html; charset=utf-8',
-                'Content-Disposition': f'attachment; filename="{tournament.name}_分組圖.html"'
+                'Content-Disposition': f'attachment; filename="{tournament.name}_分組圖.html"',
+                'Access-Control-Allow-Origin': 'https://gold-1-ccpj.onrender.com',
+                'Access-Control-Allow-Methods': 'GET',
+                'Access-Control-Allow-Headers': 'Content-Type, Accept',
+                'Access-Control-Expose-Headers': 'Content-Disposition'
             })
-            
-            # 添加 CORS 標頭
-            response.headers.add('Access-Control-Allow-Origin', '*')
-            response.headers.add('Access-Control-Allow-Methods', 'GET')
-            response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-            response.headers.add('Access-Control-Expose-Headers', 'Content-Disposition')
             
             app.logger.info("分組圖匯出成功")
             return response
