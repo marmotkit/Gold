@@ -109,12 +109,13 @@ function ParticipantCard({
   );
 }
 
-function DynamicGrouping({ tournament, onParticipantUpdate }) {
+function DynamicGrouping({ tournament, onGroupsUpdated }) {
   const groupsRef = useRef(null);
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [draggedParticipant, setDraggedParticipant] = useState(null);
+  const [draggedFromGroup, setDraggedFromGroup] = useState(null);
   const [showNewGroupDialog, setShowNewGroupDialog] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
@@ -243,7 +244,7 @@ function DynamicGrouping({ tournament, onParticipantUpdate }) {
     setShowSnackbar(true);
   };
 
-  const handleDragStart = (participant, groupId) => {
+  const handleDragStart = (e, participant, groupId) => {
     setDraggedParticipant(participant);
     setDraggedFromGroup(groupId);
   };
@@ -257,43 +258,57 @@ function DynamicGrouping({ tournament, onParticipantUpdate }) {
     e.preventDefault();
   };
 
-  const handleDrop = (targetGroupId) => {
-    if (!draggedParticipant || 
-        targetGroupId === draggedFromGroup || 
-        lockedGroups.has(targetGroupId) || 
-        lockedGroups.has(draggedFromGroup)) {
-      return;
-    }
+  const handleDrop = async (e, targetGroupId) => {
+    e.preventDefault();
+    if (!draggedParticipant || draggedFromGroup === targetGroupId) return;
 
-    setGroups(prevGroups => {
-      // 創建新的分組陣列
-      const newGroups = prevGroups.map(group => {
-        // 如果是來源組，移除參賽者
+    try {
+      // 更新分組
+      const updatedGroups = groups.map(group => {
         if (group.id === draggedFromGroup) {
           return {
             ...group,
             participants: group.participants.filter(p => p.id !== draggedParticipant.id)
           };
         }
-        // 如果是目標組，添加參賽者
         if (group.id === targetGroupId) {
-          // 檢查參賽者是否已經在目標組中
-          const participantExists = group.participants.some(p => p.id === draggedParticipant.id);
-          if (!participantExists) {
-            return {
-              ...group,
-              participants: [...group.participants, draggedParticipant]
-            };
-          }
+          return {
+            ...group,
+            participants: [...group.participants, draggedParticipant]
+          };
         }
         return group;
       });
 
-      // 記錄被移動的參賽者
-      setMovedParticipants(prev => new Set([...prev, draggedParticipant.id]));
-      setHasChanges(true);
-      return newGroups;
-    });
+      setGroups(updatedGroups);
+      
+      // 發送更新到後端
+      const response = await fetch(buildApiUrl(`/tournaments/${tournament.id}/save_groups`), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ groups: updatedGroups })
+      });
+
+      if (!response.ok) {
+        throw new Error('更新分組失敗');
+      }
+
+      setSnackbar({
+        open: true,
+        message: '分組更新成功',
+        severity: 'success'
+      });
+
+    } catch (error) {
+      console.error('更新分組失敗:', error);
+      setSnackbar({
+        open: true,
+        message: error.message || '更新分組失敗',
+        severity: 'error'
+      });
+    }
   };
 
   const handleDeleteParticipant = (groupId, participantId) => {
@@ -468,7 +483,7 @@ function DynamicGrouping({ tournament, onParticipantUpdate }) {
                   position: 'relative'
                 }}
                 onDragOver={handleDragOver}
-                onDrop={() => handleDrop(group.id)}
+                onDrop={(e) => handleDrop(e, group.id)}
               >
                 <Box sx={{ 
                   display: 'flex', 
@@ -500,7 +515,7 @@ function DynamicGrouping({ tournament, onParticipantUpdate }) {
                       key={`participant-${participant.id}-group-${group.id}`}
                       participant={participant}
                       onDelete={() => handleDeleteParticipant(group.id, participant.id)}
-                      onDragStart={() => handleDragStart(participant, group.id)}
+                      onDragStart={(e) => handleDragStart(e, participant, group.id)}
                       onDragEnd={handleDragEnd}
                       isDragging={draggedParticipant?.id === participant.id}
                       isOverflow={group.participants.length > 4}
@@ -536,10 +551,10 @@ function DynamicGrouping({ tournament, onParticipantUpdate }) {
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
-        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
       >
         <Alert 
-          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
           severity={snackbar.severity}
         >
           {snackbar.message}

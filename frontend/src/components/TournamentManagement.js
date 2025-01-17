@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Button,
   Dialog,
@@ -36,6 +36,10 @@ function TournamentManagement({ onTournamentSelect }) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [tournamentId, setTournamentId] = useState(null);
+  const [participants, setParticipants] = useState([]);
+  const checkInRef = useRef(null);
+  const groupingRef = useRef(null);
 
   useEffect(() => {
     fetchTournaments();
@@ -205,6 +209,67 @@ function TournamentManagement({ onTournamentSelect }) {
     }
   };
 
+  const handleCheckIn = async (participant) => {
+    // 如果已經報到，直接返回
+    if (participant.checked_in) {
+        setSnackbar({
+            open: true,
+            message: '參賽者已經報到',
+            severity: 'warning'
+        });
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            buildApiUrl(`/tournaments/${tournamentId}/participants/${participant.id}/check-in`),
+            {
+                method: 'PUT',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            }
+        );
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || '報到失敗');
+        }
+
+        // 更新參賽者列表
+        setParticipants(prevParticipants => 
+            prevParticipants.map(p => 
+                p.id === participant.id ? {...p, ...data.participant} : p
+            )
+        );
+
+        // 觸發參賽者更新事件
+        handleParticipantUpdated(data.participant);
+
+        setSnackbar({
+            open: true,
+            message: data.message,
+            severity: 'success'
+        });
+
+    } catch (error) {
+        console.error('報到錯誤:', error);
+        setSnackbar({
+            open: true,
+            message: error.message || '報到處理失敗',
+            severity: 'error'
+        });
+    }
+  };
+
+  const handleTournamentSelect = (tournament) => {
+    setTournamentId(tournament.id);
+    onTournamentSelect(tournament);
+  };
+
   return (
     <div>
       <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -244,19 +309,19 @@ function TournamentManagement({ onTournamentSelect }) {
                     cursor: 'pointer',
                     '&:hover': { backgroundColor: '#f5f5f5' }
                   }}
-                  onClick={() => onTournamentSelect(tournament)}
+                  onClick={() => handleTournamentSelect(tournament)}
                 >
                   <TableCell 
                     onClick={(e) => {
                       e.stopPropagation();
-                      onTournamentSelect(tournament);
+                      handleTournamentSelect(tournament);
                     }}
                     sx={{ cursor: 'pointer' }}
                   >{tournament.name}</TableCell>
                   <TableCell 
                     onClick={(e) => {
                       e.stopPropagation();
-                      onTournamentSelect(tournament);
+                      handleTournamentSelect(tournament);
                     }}
                     sx={{ cursor: 'pointer' }}
                   >{tournament.date}</TableCell>
@@ -337,8 +402,8 @@ function TournamentManagement({ onTournamentSelect }) {
         autoHideDuration={6000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
       >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
           severity={snackbar.severity}
           sx={{ width: '100%' }}
         >

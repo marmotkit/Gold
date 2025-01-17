@@ -56,12 +56,8 @@ import eventlet
 
 # 配置日誌
 logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s %(levelname)s: %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler('app.log')
-    ]
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s: %(message)s'
 )
 
 logger = logging.getLogger(__name__)
@@ -370,36 +366,31 @@ def get_next_registration_number(tournament_id):
 @app.route('/tournaments/<int:tournament_id>', methods=['DELETE'])
 def delete_tournament(tournament_id):
     try:
-        app.logger.info(f"開始刪除賽事 {tournament_id}")
-        tournament = Tournament.query.get(tournament_id)
+        tournament = Tournament.query.get_or_404(tournament_id)
         
-        if not tournament:
-            app.logger.error(f"找不到賽事 ID: {tournament_id}")
-            return jsonify({'error': f'找不到賽事 ID: {tournament_id}'}), 404
-            
         # 檢查是否有已報到的參賽者
-        has_checked_in = db.session.query(Participant).filter(
-            Participant.tournament_id == tournament_id,
-            Participant.checked_in.is_(True)
-        ).limit(1).first() is not None
+        has_checked_in = Participant.query.filter_by(
+            tournament_id=tournament_id,
+            checked_in=True
+        ).first() is not None
         
         if has_checked_in:
-            app.logger.warning(f"賽事 {tournament_id} 有已報到的參賽者，無法刪除")
-            return jsonify({'error': '該賽事有已報到的參賽者，無法刪除'}), 400
+            return jsonify({
+                "error": "該賽事有已報到的參賽者，無法刪除"
+            }), 400
             
-        # 刪除賽事及其所有參賽者
+        # 先刪除所有相關的參賽者
+        Participant.query.filter_by(tournament_id=tournament_id).delete()
+        
+        # 再刪除賽事
         db.session.delete(tournament)
         db.session.commit()
         
-        app.logger.info(f"賽事 {tournament_id} 刪除成功")
-        return jsonify({'message': '賽事刪除成功'})
+        return jsonify({"message": "賽事已成功刪除"})
         
     except Exception as e:
         db.session.rollback()
-        app.logger.error(f"刪除賽事時發生錯誤: {str(e)}")
-        import traceback
-        app.logger.error(traceback.format_exc())
-        return jsonify({'error': str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
 # 刪除參賽者
 @app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>', methods=['DELETE'])
@@ -452,56 +443,38 @@ def delete_all_participants(tournament_id):
         return jsonify({'error': str(e)}), 500
 
 # 更新報到狀態（PUT 方法）
-@app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>/check-in', methods=['PUT', 'DELETE'])
-def handle_check_in(tournament_id, participant_id):
+@app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>/check-in', methods=['PUT'])
+def check_in_participant(tournament_id, participant_id):
     try:
-        app.logger.info(f"處理參賽者 {participant_id} 的{'取消' if request.method == 'DELETE' else ''}報到請求")
-        
-        participant = db.session.query(Participant).filter_by(
+        # 查找參賽者
+        participant = Participant.query.filter_by(
             tournament_id=tournament_id,
             id=participant_id
-        ).with_for_update().first_or_404()
+        ).first_or_404()
         
-        # 檢查當前狀態
-        is_check_in = request.method == 'PUT'
-        if participant.checked_in == is_check_in:
+        # 如果已經報到，返回錯誤
+        if participant.checked_in:
             return jsonify({
-                'status': 'success',
-                'message': '已經是目標狀態',
+                'error': '參賽者已經報到',
                 'participant': participant.to_dict()
-            })
+            }), 400
             
         # 更新報到狀態
-        participant.checked_in = is_check_in
-        participant.check_in_time = datetime.now() if is_check_in else None
+        participant.checked_in = True
+        participant.check_in_time = datetime.now()
         participant.updated_at = datetime.now()
         
-        try:
-            db.session.commit()
-            app.logger.info(f"參賽者 {participant.name} {'取消' if request.method == 'DELETE' else ''}報到成功")
-            
-            return jsonify({
-                'status': 'success',
-                'message': f"{'取消' if request.method == 'DELETE' else ''}報到成功",
-                'participant': participant.to_dict()
-            })
-            
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"更新報到狀態失敗: {str(e)}")
-            return jsonify({
-                'status': 'error',
-                'message': '更新報到狀態失敗',
-                'error': str(e)
-            }), 500
-            
-    except Exception as e:
-        app.logger.error(f"處理報到請求時發生錯誤: {str(e)}")
+        db.session.commit()
+        
         return jsonify({
-            'status': 'error',
-            'message': '處理報到請求時發生錯誤',
-            'error': str(e)
-        }), 500
+            'message': f'參賽者 {participant.name} 報到成功',
+            'participant': participant.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"報到處理失敗: {str(e)}")
+        return jsonify({'error': '報到處理失敗'}), 500
 
 # 自動分組
 @app.route('/tournaments/<int:tournament_id>/auto-group', methods=['POST'])
