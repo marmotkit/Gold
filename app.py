@@ -67,7 +67,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # 獲取環境配置
-config_name = os.environ.get('FLASK_DEBUG', 'production')
+config_name = os.environ.get('FLASK_ENV', 'development')
 
 # 初始化 Flask 應用
 app = Flask(__name__, static_folder='frontend/build', static_url_path='')
@@ -90,9 +90,9 @@ migrate = Migrate(app, db)
 # 設置 CORS
 CORS(app, resources={
     r"/*": {
-        "origins": ["https://gold-1-ccpj.onrender.com", "http://localhost:3000"],
+        "origins": ["https://gold-tawny.vercel.app", "http://localhost:3000"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization", "Content-Disposition", "Accept"],
+        "allow_headers": ["Content-Type", "Authorization", "Content-Disposition"],
         "expose_headers": ["Content-Disposition"],
         "supports_credentials": True
     }
@@ -1291,18 +1291,12 @@ with app.app_context():
         existing_columns = inspector.get_columns('participants')
         existing_column_names = [col['name'] for col in existing_columns]
         
-        # 如果存在舊的 check_in_status 欄位，將其刪除
-        if 'check_in_status' in existing_column_names:
-            app.logger.info("移除舊的 check_in_status 欄位...")
-            db.session.execute('ALTER TABLE participants DROP COLUMN IF EXISTS check_in_status')
-            app.logger.info("舊欄位移除成功")
-        
         # 檢查並添加 checked_in 欄位
         if 'checked_in' not in existing_column_names:
             app.logger.info("開始添加 checked_in 欄位...")
             db.session.execute('''
                 ALTER TABLE participants 
-                ADD COLUMN IF NOT EXISTS checked_in BOOLEAN DEFAULT FALSE
+                ADD COLUMN checked_in BOOLEAN DEFAULT FALSE
             ''')
             app.logger.info("checked_in 欄位添加成功")
             
@@ -1311,7 +1305,7 @@ with app.app_context():
             app.logger.info("開始添加 check_in_time 欄位...")
             db.session.execute('''
                 ALTER TABLE participants 
-                ADD COLUMN IF NOT EXISTS check_in_time TIMESTAMP
+                ADD COLUMN check_in_time TIMESTAMP
             ''')
             app.logger.info("check_in_time 欄位添加成功")
             
