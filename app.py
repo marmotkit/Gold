@@ -507,22 +507,18 @@ def cancel_check_in(tournament_id, participant_id):
     try:
         app.logger.info(f"處理參賽者 {participant_id} 的取消報到請求")
         
-        # 檢查賽事是否存在
-        tournament = Tournament.query.get(tournament_id)
-        if not tournament:
-            app.logger.error(f"找不到賽事 ID: {tournament_id}")
-            return jsonify({'error': f'找不到賽事 ID: {tournament_id}'}), 404
-            
-        # 檢查參賽者是否存在
-        participant = Participant.query.get(participant_id)
-        if not participant:
-            app.logger.error(f"找不到參賽者 ID: {participant_id}")
-            return jsonify({'error': f'找不到參賽者 ID: {participant_id}'}), 404
-            
-        # 檢查參賽者是否屬於該賽事
-        if participant.tournament_id != tournament_id:
-            app.logger.error(f"參賽者 {participant_id} 不屬於賽事 {tournament_id}")
-            return jsonify({'error': '參賽者不屬於該賽事'}), 400
+        participant = Participant.query.filter_by(
+            tournament_id=tournament_id,
+            id=participant_id
+        ).first_or_404()
+        
+        # 如果尚未報到，直接返回
+        if not participant.checked_in:
+            return jsonify({
+                'status': 'success',
+                'message': '尚未報到',
+                'participant': participant.to_dict()
+            })
             
         # 更新報到狀態
         participant.checked_in = False
@@ -532,33 +528,26 @@ def cancel_check_in(tournament_id, participant_id):
             db.session.commit()
             app.logger.info(f"參賽者 {participant.name} 取消報到成功")
             
-            # 使用 sio 發送事件
-            sio.emit('participant_updated', {
-                'tournament_id': tournament_id,
-                'participant': participant.to_dict()
-            })
-            
-            # 返回完整的參賽者資料，包括更新後的狀態
             return jsonify({
-                'success': True,
+                'status': 'success',
                 'message': '取消報到成功',
                 'participant': participant.to_dict()
             })
             
         except Exception as e:
             db.session.rollback()
-            app.logger.error(f"儲存取消報到狀態時發生錯誤: {str(e)}")
+            app.logger.error(f"取消報到更新失敗: {str(e)}")
             return jsonify({
-                'success': False,
-                'error': f'儲存取消報到狀態時發生錯誤: {str(e)}'
+                'status': 'error',
+                'message': '取消報到更新失敗',
+                'error': str(e)
             }), 500
             
     except Exception as e:
         app.logger.error(f"處理取消報到請求時發生錯誤: {str(e)}")
-        import traceback
-        app.logger.error(traceback.format_exc())
         return jsonify({
-            'success': False,
+            'status': 'error',
+            'message': '處理取消報到請求時發生錯誤',
             'error': str(e)
         }), 500
 
@@ -1275,6 +1264,10 @@ def get_groups(tournament_id):
 # 在應用啟動時執行遷移
 with app.app_context():
     try:
+        # 首先創建所有表
+        db.create_all()
+        app.logger.info("數據庫表創建完成")
+        
         # 檢查是否已經存在必要欄位
         inspector = db.inspect(db.engine)
         existing_columns = inspector.get_columns('participants')
