@@ -234,6 +234,18 @@ function TournamentManagement({ onTournamentSelect }) {
     setOpenDialog(true);
   };
 
+  const handleParticipantUpdated = (updatedParticipant) => {
+    // 更新報到管理的狀態
+    if (checkInRef.current) {
+        checkInRef.current.updateParticipant(updatedParticipant);
+    }
+    
+    // 更新分組管理的狀態
+    if (groupingRef.current) {
+        groupingRef.current.updateParticipant(updatedParticipant);
+    }
+  };
+
   return (
     <div>
       <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

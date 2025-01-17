@@ -14,6 +14,7 @@ import {
   IconButton,
   Grid,
   Paper,
+  Space,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
@@ -196,49 +197,37 @@ function DynamicGrouping({ tournament, onParticipantUpdate }) {
   };
 
   // 添加報到處理函數
-  const handleCheckIn = async (participantId) => {
+  const handleCheckIn = async (participant) => {
     try {
-      const response = await fetch(
-        buildApiUrl(`/tournaments/${tournament.id}/participants/${participantId}/check-in`),
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('報到失敗');
-      }
+      const method = participant.checked_in ? 'DELETE' : 'PUT';
+      const response = await fetch(`${API_BASE_URL}/tournaments/${tournamentId}/participants/${participant.id}/check-in`, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include'
+      });
 
       const data = await response.json();
-      console.log('報到回應:', data);
-
+      
       if (data.status === 'success') {
         // 更新本地狀態
         setGroups(prevGroups => 
           prevGroups.map(group => ({
             ...group,
             participants: group.participants.map(p => 
-              p.id === participantId ? { ...p, ...data.participant } : p
+              p.id === participant.id ? data.participant : p
             )
           }))
         );
-        
-        message.success('報到成功');
-        
-        // 觸發全局更新
-        if (onParticipantUpdate) {
-          onParticipantUpdate();
-        }
+        message.success(data.message);
       } else {
-        throw new Error(data.message || '報到失敗');
+        console.error(participant.checked_in ? '取消報到失敗:' : '報到失敗:', data.message);
+        message.error(data.message);
       }
     } catch (error) {
-      console.error('報到錯誤:', error);
-      message.error(error.message || '報到失敗');
+      console.error('處理報到狀態時發生錯誤:', error);
+      message.error('處理報到狀態時發生錯誤');
     }
   };
 
@@ -410,6 +399,27 @@ function DynamicGrouping({ tournament, onParticipantUpdate }) {
       return newLocked;
     });
   };
+
+  const renderParticipantActions = (participant) => (
+    <Space>
+      {participant.checked_in ? (
+        <Button 
+          type="primary" 
+          danger
+          onClick={() => handleCheckIn(participant)}
+        >
+          取消報到
+        </Button>
+      ) : (
+        <Button 
+          type="primary"
+          onClick={() => handleCheckIn(participant)}
+        >
+          報到
+        </Button>
+      )}
+    </Space>
+  );
 
   if (loading) return <CircularProgress />;
   if (error) return <Typography color="error">{error}</Typography>;

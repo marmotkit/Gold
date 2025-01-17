@@ -118,28 +118,27 @@ function CheckInManagement({ tournament }) {
         }
       );
 
-      if (!response.ok) {
-        throw new Error('取消報到失敗');
-      }
-
       const data = await response.json();
       
-      // 檢查回應是否成功
-      if (data.success) {
+      if (data.status === 'success') {
         // 更新本地狀態
         setParticipants(prevParticipants => 
           prevParticipants.map(p => 
-            p.id === participant.id ? { ...p, ...data.participant } : p
+            p.id === participant.id ? data.participant : p
           )
         );
         
-        showMessage('取消報到成功', 'success');
+        // 通知其他組件更新
+        if (onParticipantUpdated) {
+          onParticipantUpdated(data.participant);
+        }
       } else {
-        throw new Error(data.error || '取消報到失敗');
+        console.error('取消報到失敗:', data.message);
+        message.error(data.message || '取消報到失敗');
       }
     } catch (error) {
-      console.error('取消報到錯誤:', error);
-      showMessage(error.message, 'error');
+      console.error('取消報到時發生錯誤:', error);
+      message.error('取消報到時發生錯誤');
     }
   };
 
