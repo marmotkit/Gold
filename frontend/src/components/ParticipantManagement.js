@@ -926,6 +926,36 @@ function ParticipantManagement({ tournament }) {
     ));
   };
 
+  const handleCheckIn = async (participantId) => {
+    try {
+        const response = await fetch(`${API_URL}/tournaments/${tournament.id}/participants/${participantId}/check_in`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        if (!response.ok) throw new Error('報到失敗');
+
+        // 更新本地狀態
+        setParticipants(prevParticipants => 
+            prevParticipants.map(p => 
+                p.id === participantId 
+                    ? { ...p, checked_in: true, check_in_time: new Date().toISOString() }
+                    : p
+            )
+        );
+
+        message.success('報到成功');
+        
+        // 觸發全局更新
+        if (onParticipantUpdate) {
+            onParticipantUpdate();
+        }
+    } catch (error) {
+        console.error('報到錯誤:', error);
+        message.error('報到失敗');
+    }
+  };
+
   return (
     <Box component="section" role="region" aria-label="參賽者管理">
       <Box sx={{ mb: 2 }}>
