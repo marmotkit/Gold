@@ -20,17 +20,11 @@ import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import MaleIcon from '@mui/icons-material/Male';
 import FemaleIcon from '@mui/icons-material/Female';
 import AddIcon from '@mui/icons-material/Add';
-<<<<<<< HEAD
-import { buildApiUrl } from '../config';
-=======
 import LockIcon from '@mui/icons-material/Lock';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
-import config from '../config';
-
-const API_URL = config.API_URL;
->>>>>>> temp-deploy
+import { buildApiUrl } from '../config';
 
 function ParticipantCard({ 
   participant, 
@@ -42,8 +36,6 @@ function ParticipantCard({
   isMoved,
   onToggleCheckIn 
 }) {
-  const isCheckedIn = participant.check_in_status === 'checked_in';
-  
   return (
     <Box
       sx={{
@@ -61,26 +53,22 @@ function ParticipantCard({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
     >
-      {participant.gender === 'F' ? <FemaleIcon color="secondary" /> : <MaleIcon color="primary" />}
-      <Typography sx={{ marginLeft: '8px', flex: 1 }}>
-        {participant.name}
-<<<<<<< HEAD
-        <Typography variant="caption" sx={{ marginLeft: '8px', color: 'text.secondary' }}>
-          ({participant.handicap === null ? 'N/A' : participant.handicap})
+      <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+        <Typography>
+          {participant.name}
+          <Typography 
+            component="span" 
+            sx={{ 
+              ml: 1,
+              color: 'text.secondary',
+              fontSize: '0.8rem'
+            }}
+          >
+            ({participant.handicap || 'N/A'})
+          </Typography>
         </Typography>
-      </Typography>
-=======
-        <Typography 
-          component="span" 
-          sx={{ 
-            ml: 1,
-            color: 'text.secondary',
-            fontSize: '0.8rem'
-          }}
-        >
-          ({participant.handicap || 'N/A'})
-        </Typography>
-      </Typography>
+      </Box>
+      
       <IconButton 
         size="small" 
         onClick={(e) => {
@@ -88,26 +76,34 @@ function ParticipantCard({
           onToggleCheckIn(participant);
         }}
         sx={{ 
-          color: isCheckedIn ? 'success.main' : 'action.disabled',
+          color: participant.checked_in ? 'success.main' : 'action.disabled',
           '&:hover': {
-            color: isCheckedIn ? 'success.dark' : 'action.active'
+            color: participant.checked_in ? 'success.dark' : 'action.active'
           }
         }}
       >
-        {isCheckedIn ? 
+        {participant.checked_in ? 
           <CheckCircleIcon sx={{ fontSize: '1.2rem' }} /> : 
           <RadioButtonUncheckedIcon sx={{ fontSize: '1.2rem' }} />
         }
       </IconButton>
+      
       {participant.gender === 'M' ? (
         <MaleIcon sx={{ fontSize: '1rem', color: 'primary.main' }} />
       ) : (
         <FemaleIcon sx={{ fontSize: '1rem', color: 'error.main' }} />
       )}
-      <IconButton size="small" onClick={onDelete} sx={{ ml: 0.5 }}>
+      
+      <IconButton 
+        size="small" 
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+        sx={{ ml: 0.5 }}
+      >
         <DeleteIcon sx={{ fontSize: '1rem' }} />
       </IconButton>
->>>>>>> temp-deploy
     </Box>
   );
 }
@@ -118,50 +114,92 @@ function DynamicGrouping({ tournament }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [draggedParticipant, setDraggedParticipant] = useState(null);
-  const [draggedFromGroup, setDraggedFromGroup] = useState(null);
-  const [showSnackbar, setShowSnackbar] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
   const [showNewGroupDialog, setShowNewGroupDialog] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
   const [movedParticipants, setMovedParticipants] = useState(new Set());
-<<<<<<< HEAD
+  const [lockedGroups, setLockedGroups] = useState(new Set());
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
     severity: 'success'
   });
-=======
-  const [lockedGroups, setLockedGroups] = useState(new Set());
->>>>>>> temp-deploy
+
+  // 載入分組資料
+  const loadGroups = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(buildApiUrl(`/tournaments/${tournament.id}/groups`));
+      if (!response.ok) {
+        throw new Error('載入分組資料失敗');
+      }
+      const data = await response.json();
+      setGroups(data);
+    } catch (error) {
+      console.error('載入分組錯誤:', error);
+      setSnackbar({
+        open: true,
+        message: error.message,
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 處理報到狀態切換
+  const handleToggleCheckIn = async (participant) => {
+    try {
+      const response = await fetch(
+        buildApiUrl(`/tournaments/${tournament.id}/participants/${participant.id}/check-in`),
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            checked_in: !participant.checked_in
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('更新報到狀態失敗');
+      }
+
+      // 更新本地狀態
+      setGroups(prevGroups => 
+        prevGroups.map(group => ({
+          ...group,
+          participants: group.participants.map(p => 
+            p.id === participant.id
+              ? { ...p, checked_in: !p.checked_in }
+              : p
+          )
+        }))
+      );
+
+      setSnackbar({
+        open: true,
+        message: '報到狀態已更新',
+        severity: 'success'
+      });
+
+    } catch (error) {
+      console.error('更新報到狀態錯誤:', error);
+      setSnackbar({
+        open: true,
+        message: error.message,
+        severity: 'error'
+      });
+    }
+  };
 
   useEffect(() => {
     if (tournament) {
-      fetchGroups();
+      loadGroups();
     }
   }, [tournament]);
-
-  const fetchGroups = async () => {
-    try {
-      console.log('開始獲取分組數據...');
-      const response = await fetch(buildApiUrl(`/tournaments/${tournament.id}/groups`));
-      console.log('分組數據回應狀態:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('獲取分組數據失敗:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('獲取到的分組數據:', data);
-      setGroups(data);
-    } catch (error) {
-      console.error('獲取分組時發生錯誤:', error);
-      setError(error.message);
-    }
-  };
 
   const showMessage = (message, severity = 'success') => {
     setSnackbarMessage(message);
@@ -260,183 +298,86 @@ function DynamicGrouping({ tournament }) {
     try {
       setLoading(true);
       const response = await fetch(buildApiUrl(`/tournaments/${tournament.id}/groups`), {
-        method: 'POST',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ groups }),
+        body: JSON.stringify(groups)
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '儲存分組失敗');
+        throw new Error('保存分組失敗');
       }
-      
-      const data = await response.json();
-      showMessage(data.message || '分組已成功儲存', 'success');
+
       setHasChanges(false);
-    } catch (err) {
-      console.error('儲存分組錯誤:', err);
-      showMessage(err.message || '儲存分組時發生錯誤', 'error');
+      setMovedParticipants(new Set());
+      setSnackbar({
+        open: true,
+        message: '分組已保存',
+        severity: 'success'
+      });
+
+    } catch (error) {
+      console.error('保存分組錯誤:', error);
+      setSnackbar({
+        open: true,
+        message: error.message,
+        severity: 'error'
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     try {
-      window.location.href = `${buildApiUrl(`/tournaments/${tournament.id}/export_groups_diagram_v2`)}`;
-      
-<<<<<<< HEAD
-      setSnackbar({
-        open: true,
-        message: '分組圖匯出成功',
-        severity: 'success'
-      });
-=======
-      // 創建一個新的視窗來顯示列印內容
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        throw new Error('無法開啟列印視窗，請檢查是否被瀏覽器阻擋');
+      setLoading(true);
+      const response = await fetch(
+        buildApiUrl(`/tournaments/${tournament.id}/export_groups_pdf`),
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'text/html'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('匯出分組圖失敗');
       }
 
-      // 設置列印視窗的內容
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>${tournament.name} - 分組表</title>
-            <style>
-              body {
-                font-family: Arial, sans-serif;
-                margin: 20px;
-                color: #000;
-              }
-              .header {
-                text-align: center;
-                margin-bottom: 20px;
-              }
-              .title {
-                font-size: 24px;
-                font-weight: bold;
-                margin-bottom: 10px;
-              }
-              .date {
-                font-size: 14px;
-                color: #666;
-              }
-              .groups-container {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-                gap: 20px;
-                margin-top: 20px;
-              }
-              .group {
-                border: 1px solid #ccc;
-                padding: 10px;
-                background-color: #f5f5f5;
-                break-inside: avoid;
-              }
-              .group-title {
-                font-weight: bold;
-                margin-bottom: 10px;
-                font-size: 16px;
-              }
-              .participant {
-                padding: 5px;
-                margin-bottom: 5px;
-                background-color: white;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-              }
-              .handicap {
-                color: #666;
-                font-size: 0.9em;
-                margin-left: 8px;
-              }
-              .moved {
-                background-color: #fff9c4;
-              }
-              .female {
-                background-color: #fce4ec;
-              }
-              .gender-indicator {
-                font-weight: bold;
-                padding: 2px 6px;
-                border-radius: 4px;
-                font-size: 0.8em;
-              }
-              .gender-male {
-                background-color: #e3f2fd;
-                color: #1976d2;
-              }
-              .gender-female {
-                background-color: #fce4ec;
-                color: #d81b60;
-              }
-              @media print {
-                @page {
-                  size: A4;
-                  margin: 1cm;
-                }
-                body {
-                  margin: 0;
-                }
-                .group {
-                  page-break-inside: avoid;
-                }
-              }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <div class="title">${tournament.name} - 分組表</div>
-              <div class="date">匯出日期: ${new Date().toLocaleDateString('zh-TW')}</div>
-            </div>
-            <div class="groups-container">
-              ${groups.map(group => `
-                <div class="group">
-                  <div class="group-title">${group.name} (${group.participants.length} 人)</div>
-                  ${group.participants.map(participant => `
-                    <div class="participant ${participant.gender === 'F' ? 'female' : ''} ${movedParticipants.has(participant.id) ? 'moved' : ''}">
-                      <span>
-                        ${participant.name}
-                        <span class="handicap">差點: ${participant.handicap || 'N/A'}</span>
-                      </span>
-                      <span class="gender-indicator ${participant.gender === 'F' ? 'gender-female' : 'gender-male'}">
-                        ${participant.gender === 'F' ? '女' : '男'}
-                      </span>
-                    </div>
-                  `).join('')}
-                </div>
-              `).join('')}
-            </div>
-          </body>
-        </html>
-      `);
+      // 取得檔案名稱
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const filename = contentDisposition
+        ? decodeURIComponent(contentDisposition.split('filename=')[1].replace(/"/g, ''))
+        : '分組圖.html';
 
-      // 等待樣式載入
-      setTimeout(() => {
-        printWindow.document.close();
-        printWindow.print();
-        // 當使用者完成列印後關閉視窗
-        printWindow.onafterprint = () => {
-          printWindow.close();
-        };
-        setLoading(false);
-      }, 500);
+      // 下載檔案
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
 
->>>>>>> temp-deploy
+      setSnackbar({
+        open: true,
+        message: '分組圖已匯出',
+        severity: 'success'
+      });
+
     } catch (error) {
       console.error('匯出分組圖錯誤:', error);
       setSnackbar({
         open: true,
-        message: '匯出分組圖失敗',
+        message: error.message,
         severity: 'error'
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -452,86 +393,36 @@ function DynamicGrouping({ tournament }) {
     });
   };
 
-  const handleToggleCheckIn = async (participant) => {
-    try {
-      setLoading(true);
-      const response = await fetch(
-        `${API_URL}/tournaments/${tournament.id}/participants/${participant.id}/check-in`, 
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            check_in_status: participant.check_in_status === 'checked_in' ? 'not_checked_in' : 'checked_in',
-            check_in_time: participant.check_in_status === 'checked_in' ? null : new Date().toISOString()
-          }),
-        }
-      );
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || '報到狀�更新失敗');
-      }
-
-      // 更新本地狀態
-      setGroups(prevGroups => {
-        return prevGroups.map(group => ({
-          ...group,
-          participants: group.participants.map(p => 
-            p.id === participant.id 
-              ? { 
-                  ...p, 
-                  check_in_status: data.participant.check_in_status,
-                  check_in_time: data.participant.check_in_time
-                }
-              : p
-          )
-        }));
-      });
-
-      showMessage(data.message || `${participant.name} ${participant.check_in_status !== 'checked_in' ? '報到成功' : '取消報到'}`, 'success');
-    } catch (error) {
-      console.error('報到錯誤:', error);
-      showMessage(error.message || '報到狀態更新失敗', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   if (loading) return <CircularProgress />;
   if (error) return <Typography color="error">{error}</Typography>;
   if (!tournament) return <Typography>請先選擇賽事</Typography>;
 
   return (
-    <Box sx={{ width: '100%' }}>
-      <Box sx={{ mb: 2, display: 'flex', gap: 1 }}>
+    <Box sx={{ p: 2 }}>
+      <Box sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
         <Button
           variant="contained"
-          color="primary"
-          size="small"
-          onClick={() => setShowNewGroupDialog(true)}
           startIcon={<AddIcon />}
+          onClick={() => setShowNewGroupDialog(true)}
         >
           新增分組
         </Button>
-        {hasChanges && (
-          <Button
-            variant="contained"
-            color="success"
-            size="small"
-            onClick={handleSaveChanges}
-            disabled={loading}
-          >
-            儲存變更
-          </Button>
-        )}
+
+        <Button
+          variant="contained"
+          onClick={handleSaveChanges}
+          disabled={!hasChanges || loading}
+          sx={{ ml: 1 }}
+        >
+          保存更改
+        </Button>
+
         <Button
           variant="contained"
           startIcon={<PictureAsPdfIcon />}
           onClick={handleExportPDF}
-          style={{ marginLeft: '10px' }}
+          disabled={loading}
+          sx={{ ml: 1 }}
         >
           匯出分組圖
         </Button>
