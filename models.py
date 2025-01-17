@@ -7,7 +7,7 @@ class Tournament(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     date = db.Column(db.Date)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
     
     participants = db.relationship('Participant', backref='tournament', lazy=True, cascade='all, delete-orphan')
 
