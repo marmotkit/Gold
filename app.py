@@ -258,11 +258,114 @@ def generate_registration_number():
     except (ValueError, IndexError):
         return 'A01'
 
+<<<<<<< HEAD
 def get_next_display_order(tournament_id):
     """獲取下一個顯示順序"""
     max_order = db.session.query(func.max(Participant.display_order))\
         .filter_by(tournament_id=tournament_id).scalar()
     return (max_order or 0) + 1
+=======
+# 建立新賽事
+@app.route('/tournaments', methods=['POST'])
+def create_tournament():
+    try:
+        print('================== 請求開始 ==================')
+        print(f'請求路徑: {request.path}')
+        print(f'請求方法: {request.method}')
+        print(f'請求來源: {request.headers.get("Origin")}')
+        print(f'請求頭部:')
+        for name, value in request.headers.items():
+            print(f'  {name}: {value}')
+        print('============================================')
+        
+        print("收到創建賽事請求")
+        print(f"請求數據: {request.json}")
+        
+        data = request.json
+        tournament = Tournament(
+            name=data['name'],
+            date=datetime.strptime(data['date'], '%Y-%m-%d').date() if data.get('date') else None
+        )
+        db.session.add(tournament)
+        db.session.commit()
+        
+        result = {
+            'id': tournament.id,
+            'name': tournament.name,
+            'date': tournament.date.strftime('%Y-%m-%d') if tournament.date else None
+        }
+        print(f"創建賽事成功: {result}")
+        
+        return jsonify(result), 201
+        
+    except Exception as e:
+        print(f"創建賽事時發生錯誤: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+# 獲取賽事的參賽者列表
+@app.route('/tournaments/<int:tournament_id>/participants', methods=['GET'])
+def get_tournament_participants(tournament_id):
+    try:
+        print('================== 請求開始 ==================')
+        print(f'請求路徑: {request.path}')
+        print(f'請求方法: {request.method}')
+        print(f'請求來源: {request.headers.get("Origin")}')
+        print(f'請求頭部:')
+        for name, value in request.headers.items():
+            print(f'  {name}: {value}')
+        print('============================================')
+        
+        # 檢查賽事是否存在
+        tournament = Tournament.query.get_or_404(tournament_id)
+        
+        # 獲取參賽者列表
+        participants = Participant.query.filter_by(tournament_id=tournament_id)\
+            .order_by(Participant.display_order)\
+            .all()
+            
+        print(f"\n獲取賽事 {tournament_id} 的參賽者列表")
+        print(f"總共找到 {len(participants)} 位參賽者")
+        
+        # 轉換為 JSON 格式
+        result = []
+        for p in participants:
+            try:
+                participant_dict = {
+                    'id': p.id,
+                    'tournament_id': p.tournament_id,
+                    'name': p.name,
+                    'gender': p.gender,
+                    'handicap': p.handicap,
+                    'member_number': p.member_number,
+                    'registration_number': p.registration_number,
+                    'pre_group_code': p.pre_group_code,
+                    'group_code': p.group_code,
+                    'group_number': p.group_number,
+                    'display_order': p.display_order,
+                    'notes': p.notes,
+                    'check_in_status': p.check_in_status or 'not_checked_in',  # 提供默認值
+                    'check_in_time': p.check_in_time.isoformat() if p.check_in_time else None,
+                    'created_at': p.created_at.isoformat() if p.created_at else None,
+                    'updated_at': p.updated_at.isoformat() if p.updated_at else None
+                }
+                print(f"成功處理參賽者資料：{p.name}")
+                result.append(participant_dict)
+            except Exception as e:
+                print(f"處理參賽者 {p.name} 資料時發生錯誤：{str(e)}")
+                continue
+            
+        return jsonify(result)
+        
+    except Exception as e:
+        print(f"獲取參賽者列表時發生錯誤：{str(e)}")
+        import traceback
+        print(traceback.format_exc())  # 印出完整的錯誤堆疊
+        return jsonify({
+            'error': '獲取參賽者列表失敗',
+            'message': str(e)
+        }), 500
+>>>>>>> temp-deploy
 
 # 匯入參賽者
 @app.route('/tournaments/<int:tournament_id>/participants/import', methods=['POST'])
@@ -279,7 +382,12 @@ def import_participants(tournament_id):
         df = pd.read_excel(file)
         
         # 檢查必要欄位
+<<<<<<< HEAD
         required_columns = ['姓名', '性別', '差點']
+=======
+        name_field = '中文姓名' if '中文姓名' in df.columns else '姓名'
+        required_columns = [name_field, '差點']
+>>>>>>> temp-deploy
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             return jsonify({'error': f'缺少必要欄位: {", ".join(missing_columns)}'}), 400
@@ -308,11 +416,19 @@ def import_participants(tournament_id):
                 
             participant = Participant(
                 tournament_id=tournament_id,
+<<<<<<< HEAD
                 name=str(row['姓名']).strip(),
                 gender='F' if str(row['性別']).strip().upper() in ['F', '女'] else 'M',
                 handicap=parse_handicap(row['差點']),
                 member_id=member_id,
                 member_number=member_number,
+=======
+               name=clean_text(str(row[name_field])),
+                gender=gender,
+                handicap=handicap,
+                member_number=str(row.get('會員編號', '')),
+                registration_number=f'A{index+1:02d}',
+>>>>>>> temp-deploy
                 pre_group_code=pre_group_code,
                 registration_number=generate_registration_number(),
                 display_order=get_next_display_order(tournament_id)
@@ -373,8 +489,19 @@ def get_next_registration_number(tournament_id):
 @app.route('/tournaments/<int:tournament_id>', methods=['DELETE'])
 def delete_tournament(tournament_id):
     try:
+<<<<<<< HEAD
         app.logger.info(f"開始刪除賽事 {tournament_id}")
         tournament = Tournament.query.get(tournament_id)
+=======
+        print('================== 請求開始 ==================')
+        print(f'請求路徑: {request.path}')
+        print(f'請求方法: {request.method}')
+        print(f'請求來源: {request.headers.get("Origin")}')
+        print(f'請請求頭部:')
+        for name, value in request.headers.items():
+            print(f'  {name}: {value}')
+        print('============================================')
+>>>>>>> temp-deploy
         
         if not tournament:
             app.logger.error(f"找不到賽事 ID: {tournament_id}")
@@ -454,10 +581,11 @@ def delete_all_participants(tournament_id):
         print(f"刪除參賽者時發生錯誤：{str(e)}")
         return jsonify({'error': str(e)}), 500
 
-# 更新報到狀態
+# 更新報到狀態（PUT 方法）
 @app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>/check-in', methods=['PUT'])
 def check_in_participant(tournament_id, participant_id):
     try:
+<<<<<<< HEAD
         app.logger.info(f"處理參賽者 {participant_id} 的報到請求")
         
         # 檢查參賽者是否存在
@@ -469,6 +597,42 @@ def check_in_participant(tournament_id, participant_id):
         # 更新報到狀態
         participant.checked_in = True
         participant.check_in_time = datetime.now()
+=======
+        data = request.get_json()
+        check_in_status = data.get('check_in_status')
+        check_in_time = data.get('check_in_time')
+        
+        # 檢查參賽者是否存在且屬於該賽事
+        participant = Participant.query.filter_by(
+            id=participant_id,
+            tournament_id=tournament_id
+        ).first()
+        
+        if not participant:
+            return jsonify({'error': '找不到參賽者或參賽者不屬於該賽事'}), 404
+            
+        # 更新報到狀態
+        participant.check_in_status = check_in_status
+        
+        # 更新報到時間
+        if check_in_time:
+            participant.check_in_time = datetime.fromisoformat(check_in_time.replace('Z', '+00:00'))
+        else:
+            participant.check_in_time = None
+            
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '報到狀態已更新',
+            'participant': {
+                'id': participant.id,
+                'name': participant.name,
+                'check_in_status': participant.check_in_status,
+                'check_in_time': participant.check_in_time.isoformat() if participant.check_in_time else None
+            }
+        })
+>>>>>>> temp-deploy
         
         try:
             db.session.commit()
@@ -489,6 +653,7 @@ def check_in_participant(tournament_id, participant_id):
             }), 500
             
     except Exception as e:
+<<<<<<< HEAD
         app.logger.error(f"處理報到請求時發生錯誤: {str(e)}")
         return jsonify({
             'success': False,
@@ -554,6 +719,15 @@ def cancel_check_in(tournament_id, participant_id):
         return jsonify({
             'success': False,
             'error': str(e)
+=======
+        db.session.rollback()
+        print(f"更新報到狀態時發生錯誤：{str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({
+            'error': '更新報到狀態失敗',
+            'message': str(e)
+>>>>>>> temp-deploy
         }), 500
 
 # 自動分組
@@ -904,7 +1078,7 @@ def export_groups(tournament_id):
             gender = "女" if p.gender == 'F' else "男"
             ws_list.append([p.name, gender, p.notes or ''])
             
-            # 如果是女生，設置粉紅色背景
+            # 如果是女生，設置粉紅紅色背景
             if p.gender == "F":
                 for cell in ws_list[row_idx]:
                     cell.fill = PatternFill(start_color="FFB6C1", end_color="FFB6C1", fill_type="solid")
@@ -1101,9 +1275,13 @@ def export_groups_diagram_v2(tournament_id):
             return jsonify({'error': f'生成分組圖時發生錯誤: {str(e)}'}), 500
         
     except Exception as e:
+<<<<<<< HEAD
         app.logger.error(f"匯出分組圖時發生錯誤: {str(e)}")
         import traceback
         app.logger.error(traceback.format_exc())
+=======
+        print(f"匯出分組圖時發生錯誤誤：{str(e)}")
+>>>>>>> temp-deploy
         return jsonify({'error': str(e)}), 500
 
 # 儲存動態分組
@@ -1257,6 +1435,7 @@ def get_groups(tournament_id):
                         "handicap": participant.handicap,  # 確保這裡有差點資料
                         "pre_group_code": participant.pre_group_code
                     }
+<<<<<<< HEAD
                     groups[group_name]["participants"].append(participant_data)
                     
             except Exception as e:
@@ -1276,14 +1455,28 @@ def get_groups(tournament_id):
             app.logger.error(f"排序分組時發生錯誤: {str(e)}")
             return jsonify({"error": f"排序分組時發生錯誤: {str(e)}"}), 500
 
-        return jsonify(groups_list)
+=======
+                groups[group_name]["participants"].append({
+                    "id": participant.id,
+                    "name": participant.name,
+                    "gender": participant.gender,
+                    "registration_number": participant.registration_number,
+                    "handicap": participant.handicap,
+                    "check_in_status": participant.check_in_status
+                })
 
+        # 轉換為列表格式並排序
+        groups_list = sorted(list(groups.values()), key=lambda x: int(x["id"]))
+>>>>>>> temp-deploy
+        return jsonify(groups_list)
+        
     except Exception as e:
         app.logger.error(f"獲取分組時發生錯誤: {str(e)}")
         import traceback
         app.logger.error(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
 
+<<<<<<< HEAD
 # 在應用啟動時執行遷移
 with app.app_context():
     try:
@@ -1450,6 +1643,45 @@ def export_groups_pdf(tournament_id):
         app.logger.error(f"匯出分組圖時發生錯誤: {str(e)}")
         import traceback
         app.logger.error(traceback.format_exc())
+=======
+# 更新報到狀態
+@app.route('/tournaments/<int:tournament_id>/check-in', methods=['POST'])
+def toggle_check_in(tournament_id):
+    try:
+        data = request.get_json()
+        participant_id = data.get('participant_id')
+        checked_in = data.get('checked_in')
+        
+        # 檢查參賽者是否存在且屬於該賽事
+        participant = Participant.query.filter_by(
+            id=participant_id,
+            tournament_id=tournament_id
+        ).first()
+        
+        if not participant:
+            return jsonify({'error': '找不到參賽者或參賽者不屬於該賽事'}), 404
+        
+        # 更新報到狀態
+        new_status = 'checked_in' if checked_in else 'not_checked_in'
+        participant.check_in_status = new_status
+        
+        # 如果是報到，記錄報到時間
+        if checked_in:
+            participant.check_in_time = datetime.utcnow()
+        else:
+            participant.check_in_time = None
+            
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '報到狀態已更新'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error in toggle_check_in: {str(e)}")
+>>>>>>> temp-deploy
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

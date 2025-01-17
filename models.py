@@ -22,11 +22,18 @@ class Participant(db.Model):
     name = db.Column(db.String(100), nullable=False)
     gender = db.Column(db.String(1))
     handicap = db.Column(db.Float)
+<<<<<<< HEAD
     member_id = db.Column(db.String(20))
     member_number = db.Column(db.String(20))
     registration_number = db.Column(db.String(20))
     pre_group_code = db.Column(db.String(20))
     group_code = db.Column(db.String(20))
+=======
+    member_number = db.Column(db.String(50))
+    registration_number = db.Column(db.String(50))
+    pre_group_code = db.Column(db.String(50))
+    group_code = db.Column(db.String(50))
+>>>>>>> temp-deploy
     group_number = db.Column(db.Integer)
     notes = db.Column(db.Text)
     display_order = db.Column(db.Integer)
@@ -35,6 +42,7 @@ class Participant(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+<<<<<<< HEAD
     def to_dict(self):
         return {
             'id': self.id,
@@ -56,5 +64,7 @@ class Participant(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
+=======
+>>>>>>> temp-deploy
     def __repr__(self):
         return f'<Participant {self.name}>'

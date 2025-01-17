@@ -794,7 +794,7 @@ function ParticipantManagement({ tournament }) {
     try {
       const newStatus = participant.check_in_status === 'checked_in' ? 'not_checked_in' : 'checked_in';
       const response = await fetch(
-        `${API_URL}/participants/${participant.id}/check-in`,
+        `${API_URL}/tournaments/${tournament.id}/participants/${participant.id}/check-in`,
         {
           method: 'PUT',
           headers: {
@@ -818,8 +818,7 @@ function ParticipantManagement({ tournament }) {
             ? {
                 ...p,
                 check_in_status: newStatus,
-                check_in_time: newStatus === 'checked_in' ? new Date().toISOString() : null,
-                checked_in: newStatus === 'checked_in'
+                check_in_time: newStatus === 'checked_in' ? new Date().toISOString() : null
               }
             : p
         )

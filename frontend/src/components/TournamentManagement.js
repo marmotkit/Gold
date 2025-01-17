@@ -57,6 +57,7 @@ function TournamentManagement({ onTournamentSelect }) {
         throw new Error('獲取賽事列表失敗');
       }
 
+<<<<<<< HEAD
       const data = await response.json();
       setTournaments(data);
     } catch (error) {
@@ -66,6 +67,76 @@ function TournamentManagement({ onTournamentSelect }) {
         message: '獲取賽事列表失敗',
         severity: 'error'
       });
+=======
+    const fetchWithRetry = async () => {
+      try {
+        console.log(`嘗試載入賽事列表... (重試次數: ${retryCount})`);
+        setLoading(true);
+        setError(null);
+
+        const response = await fetchWithTimeout(
+          `${API_URL}/tournaments`,
+          {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            mode: 'cors'
+          },
+          timeout
+        );
+
+        console.log('API 回應狀態:', response.status);
+        console.log('API 回應頭部:', Object.fromEntries(response.headers.entries()));
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('API 錯誤回應:', errorText);
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        }
+
+        const data = await response.json();
+        console.log('接收到的數據:', data);
+        setTournaments(data);
+        return true;
+      } catch (error) {
+        console.error(`載入賽事列表時發生錯誤 (重試次數: ${retryCount}):`, error);
+        
+        if (error.name === 'AbortError') {
+          console.error('請求超時');
+          throw new Error('請求超時，請稍後再試');
+        }
+        
+        if (retryCount < maxRetries) {
+          retryCount++;
+          console.log(`等待 ${retryDelay}ms 後重試...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          return false;
+        }
+        
+        setError(error.message);
+        setSnackbar({
+          open: true,
+          message: '載入賽事列表失敗：' + error.message,
+          severity: 'error'
+        });
+        throw error;
+      } finally {
+        if (retryCount >= maxRetries) {
+          setLoading(false);
+        }
+      }
+    };
+
+    while (retryCount <= maxRetries) {
+      const success = await fetchWithRetry();
+      if (success) {
+        setLoading(false);
+        break;
+      }
+>>>>>>> temp-deploy
     }
   };
 
@@ -100,9 +171,29 @@ function TournamentManagement({ onTournamentSelect }) {
       const data = await response.json();
       console.log('接收到的數據:', data);
 
+<<<<<<< HEAD
       setFormData({ name: '', date: '' });
       setOpenDialog(false);
       setEditingTournament(null);
+=======
+        const response = await fetchWithTimeout(
+          `${API_URL}/tournaments`,
+          {
+            method: editingTournament ? 'PUT' : 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            mode: 'cors',
+            body: JSON.stringify({
+              name: formData.name,
+              date: formData.date
+            })
+          },
+          timeout
+        );
+>>>>>>> temp-deploy
 
       setSnackbar({
         open: true,
@@ -155,7 +246,11 @@ function TournamentManagement({ onTournamentSelect }) {
         setError(null);
 
         const response = await fetchWithTimeout(
+<<<<<<< HEAD
           buildApiUrl(`/tournaments/${id}`),
+=======
+          `${API_URL}/tournaments/${id}`,
+>>>>>>> temp-deploy
           {
             method: 'DELETE',
             headers: {
