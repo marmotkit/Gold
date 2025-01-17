@@ -452,44 +452,46 @@ def delete_all_participants(tournament_id):
         return jsonify({'error': str(e)}), 500
 
 # 更新報到狀態（PUT 方法）
-@app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>/check-in', methods=['PUT'])
-def check_in_participant(tournament_id, participant_id):
+@app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>/check-in', methods=['PUT', 'DELETE'])
+def handle_check_in(tournament_id, participant_id):
     try:
-        app.logger.info(f"處理參賽者 {participant_id} 的報到請求")
+        app.logger.info(f"處理參賽者 {participant_id} 的{'取消' if request.method == 'DELETE' else ''}報到請求")
         
-        participant = Participant.query.filter_by(
+        participant = db.session.query(Participant).filter_by(
             tournament_id=tournament_id,
             id=participant_id
-        ).first_or_404()
+        ).with_for_update().first_or_404()
         
-        # 如果已經報到，直接返回
-        if participant.checked_in:
+        # 檢查當前狀態
+        is_check_in = request.method == 'PUT'
+        if participant.checked_in == is_check_in:
             return jsonify({
                 'status': 'success',
-                'message': '已經報到',
+                'message': '已經是目標狀態',
                 'participant': participant.to_dict()
             })
             
         # 更新報到狀態
-        participant.checked_in = True
-        participant.check_in_time = datetime.now()
+        participant.checked_in = is_check_in
+        participant.check_in_time = datetime.now() if is_check_in else None
+        participant.updated_at = datetime.now()
         
         try:
             db.session.commit()
-            app.logger.info(f"參賽者 {participant.name} 報到成功")
+            app.logger.info(f"參賽者 {participant.name} {'取消' if request.method == 'DELETE' else ''}報到成功")
             
             return jsonify({
                 'status': 'success',
-                'message': '報到成功',
+                'message': f"{'取消' if request.method == 'DELETE' else ''}報到成功",
                 'participant': participant.to_dict()
             })
             
         except Exception as e:
             db.session.rollback()
-            app.logger.error(f"報到更新失敗: {str(e)}")
+            app.logger.error(f"更新報到狀態失敗: {str(e)}")
             return jsonify({
                 'status': 'error',
-                'message': '報到更新失敗',
+                'message': '更新報到狀態失敗',
                 'error': str(e)
             }), 500
             
@@ -498,56 +500,6 @@ def check_in_participant(tournament_id, participant_id):
         return jsonify({
             'status': 'error',
             'message': '處理報到請求時發生錯誤',
-            'error': str(e)
-        }), 500
-
-# 取消報到功能路由
-@app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>/check-in', methods=['DELETE'])
-def cancel_check_in(tournament_id, participant_id):
-    try:
-        app.logger.info(f"處理參賽者 {participant_id} 的取消報到請求")
-        
-        participant = Participant.query.filter_by(
-            tournament_id=tournament_id,
-            id=participant_id
-        ).first_or_404()
-        
-        # 如果尚未報到，直接返回
-        if not participant.checked_in:
-            return jsonify({
-                'status': 'success',
-                'message': '尚未報到',
-                'participant': participant.to_dict()
-            })
-            
-        # 更新報到狀態
-        participant.checked_in = False
-        participant.check_in_time = None
-        
-        try:
-            db.session.commit()
-            app.logger.info(f"參賽者 {participant.name} 取消報到成功")
-            
-            return jsonify({
-                'status': 'success',
-                'message': '取消報到成功',
-                'participant': participant.to_dict()
-            })
-            
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"取消報到更新失敗: {str(e)}")
-            return jsonify({
-                'status': 'error',
-                'message': '取消報到更新失敗',
-                'error': str(e)
-            }), 500
-            
-    except Exception as e:
-        app.logger.error(f"處理取消報到請求時發生錯誤: {str(e)}")
-        return jsonify({
-            'status': 'error',
-            'message': '處理取消報到請求時發生錯誤',
             'error': str(e)
         }), 500
 
