@@ -27,7 +27,7 @@ import { debounce } from 'lodash';
 
 const API_URL = config.API_URL;
 
-function CheckInManagement({ tournament }) {
+function CheckInManagement({ tournament, onParticipantUpdated }) {
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({
@@ -69,7 +69,7 @@ function CheckInManagement({ tournament }) {
   const handleCheckIn = async (participant) => {
     try {
       const response = await fetch(
-        `${buildApiUrl(`/tournaments/${tournament.id}/participants/${participant.id}/check-in`)}`,
+        buildApiUrl(`/tournaments/${tournament.id}/participants/${participant.id}/check-in`),
         {
           method: 'PUT',
           headers: {
@@ -79,28 +79,37 @@ function CheckInManagement({ tournament }) {
         }
       );
 
-      if (!response.ok) {
-        throw new Error('報到失敗');
-      }
-
       const data = await response.json();
       
-      // 檢查回應是否成功
-      if (data.success) {
-        // 更新本地狀態
-        setParticipants(prevParticipants => 
-          prevParticipants.map(p => 
-            p.id === participant.id ? { ...p, ...data.participant } : p
-          )
-        );
-        
-        showMessage('報到成功', 'success');
-      } else {
+      if (!response.ok) {
         throw new Error(data.error || '報到失敗');
       }
+
+      // 更新本地狀態
+      setParticipants(prevParticipants => 
+        prevParticipants.map(p => 
+          p.id === participant.id ? { ...p, ...data.participant } : p
+        )
+      );
+
+      // 通知父組件更新
+      if (onParticipantUpdated) {
+        onParticipantUpdated(data.participant);
+      }
+
+      setSnackbar({
+        open: true,
+        message: '報到成功',
+        severity: 'success'
+      });
+
     } catch (error) {
       console.error('報到錯誤:', error);
-      showMessage(error.message, 'error');
+      setSnackbar({
+        open: true,
+        message: error.message || '報到失敗',
+        severity: 'error'
+      });
     }
   };
 
@@ -339,15 +348,6 @@ function CheckInManagement({ tournament }) {
       window.removeEventListener('focus', handleFocus);
     };
   }, [reloadParticipants, tournament?.id]);
-
-  // 添加顯示訊息的輔助函數
-  const showMessage = (message, severity) => {
-    setSnackbar({
-      open: true,
-      message,
-      severity
-    });
-  };
 
   if (!tournament) {
     return (
