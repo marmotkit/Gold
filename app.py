@@ -90,13 +90,17 @@ migrate = Migrate(app, db)
 # 設置 CORS
 CORS(app, resources={
     r"/*": {
-        "origins": ["https://gold-tawny.vercel.app", "http://localhost:3000"],
+        "origins": ["https://gold-lemon.vercel.app", "http://localhost:3000"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization", "Content-Disposition"],
         "expose_headers": ["Content-Disposition"],
         "supports_credentials": True
     }
 })
+
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
+    app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgres://', 'postgresql://', 1)
 
 @app.after_request
 def after_request(response):
