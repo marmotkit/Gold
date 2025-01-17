@@ -127,15 +127,8 @@ def create_static_folder():
         os.makedirs(static_dir)
         app.logger.info(f"創建靜態文件夾: {static_dir}")
     
-    # 檢查 index.html 是否存在
-    index_path = os.path.join(static_dir, 'index.html')
-    if not os.path.exists(index_path):
-        app.logger.warning(f"找不到 index.html: {index_path}")
-        # 列出靜態文件夾內容
-        app.logger.info(f"靜態文件夾內容:")
-        for root, dirs, files in os.walk(static_dir):
-            for file in files:
-                app.logger.info(f"  - {os.path.join(root, file)}")
+    # 移除 index.html 檢查，因為我們使用前後端分離架構
+    app.logger.info(f"後端服務啟動成功")
 
 # 初始化 Socket.IO
 sio = socketio.Server(cors_allowed_origins=["https://gold-1-ccpj.onrender.com"])
@@ -477,18 +470,23 @@ def check_in_participant(tournament_id, participant_id):
         participant.checked_in = True
         participant.check_in_time = datetime.now()
         
-        # 提交更改
-        db.session.commit()
-        
-        app.logger.info(f"參賽者 {participant.name} 報到成功")
-        
-        # 返回更新後的參賽者資料
-        return jsonify({
-            'status': 'success',
-            'message': '報到成功',
-            'participant': participant.to_dict()
-        })
-        
+        try:
+            # 提交更改
+            db.session.commit()
+            app.logger.info(f"參賽者 {participant.name} 報到成功")
+            
+            # 返回更新後的參賽者資料
+            return jsonify({
+                'status': 'success',
+                'message': '報到成功',
+                'participant': participant.to_dict()
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"儲存報到狀態時發生錯誤: {str(e)}")
+            raise
+            
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"報到處理失敗: {str(e)}")
@@ -1248,15 +1246,8 @@ def get_groups(tournament_id):
                             "participants": []
                         }
                     
-                    # 添加參賽者資料，包括差點
-                    participant_data = {
-                        "id": participant.id,
-                        "name": participant.name,
-                        "gender": participant.gender,
-                        "registration_number": participant.registration_number,
-                        "handicap": participant.handicap,  # 確保這裡有差點資料
-                        "pre_group_code": participant.pre_group_code
-                    }
+                    # 添加完整的參賽者資料
+                    participant_data = participant.to_dict()
                     groups[group_name]["participants"].append(participant_data)
                     
             except Exception as e:
@@ -1264,24 +1255,15 @@ def get_groups(tournament_id):
                 continue
 
         # 轉換為列表格式並排序
-        try:
-            groups_list = sorted(
-                list(groups.values()), 
-                key=lambda x: int(x["id"]) if x["id"].isdigit() else float('inf')
-            )
-            app.logger.info(f"成功創建 {len(groups_list)} 個分組")
-            app.logger.debug(f"分組資料: {groups_list}")  # 添加詳細日誌
-            
-        except Exception as e:
-            app.logger.error(f"排序分組時發生錯誤: {str(e)}")
-            return jsonify({"error": f"排序分組時發生錯誤: {str(e)}"}), 500
-
+        groups_list = sorted(
+            list(groups.values()), 
+            key=lambda x: int(x["id"]) if x["id"].isdigit() else float('inf')
+        )
+        
         return jsonify(groups_list)
         
     except Exception as e:
         app.logger.error(f"獲取分組時發生錯誤: {str(e)}")
-        import traceback
-        app.logger.error(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
 
 # 在應用啟動時執行遷移
