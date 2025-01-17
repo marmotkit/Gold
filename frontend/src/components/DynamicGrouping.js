@@ -198,34 +198,47 @@ function DynamicGrouping({ tournament, onParticipantUpdate }) {
   // 添加報到處理函數
   const handleCheckIn = async (participantId) => {
     try {
-      const response = await fetch(`${API_URL}/tournaments/${tournament.id}/participants/${participantId}/check_in`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-
-      if (!response.ok) throw new Error('報到失敗');
-
-      // 更新本地狀態
-      setGroups(prevGroups => 
-        prevGroups.map(group => ({
-          ...group,
-          participants: group.participants.map(p => 
-            p.id === participantId 
-              ? { ...p, checked_in: true, check_in_time: new Date().toISOString() }
-              : p
-          )
-        }))
+      const response = await fetch(
+        buildApiUrl(`/tournaments/${tournament.id}/participants/${participantId}/check-in`),
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        }
       );
 
-      message.success('報到成功');
-      
-      // 觸發全局更新
-      if (onParticipantUpdate) {
-        onParticipantUpdate();
+      if (!response.ok) {
+        throw new Error('報到失敗');
+      }
+
+      const data = await response.json();
+      console.log('報到回應:', data);
+
+      if (data.status === 'success') {
+        // 更新本地狀態
+        setGroups(prevGroups => 
+          prevGroups.map(group => ({
+            ...group,
+            participants: group.participants.map(p => 
+              p.id === participantId ? { ...p, ...data.participant } : p
+            )
+          }))
+        );
+        
+        message.success('報到成功');
+        
+        // 觸發全局更新
+        if (onParticipantUpdate) {
+          onParticipantUpdate();
+        }
+      } else {
+        throw new Error(data.message || '報到失敗');
       }
     } catch (error) {
       console.error('報到錯誤:', error);
-      message.error('報到失敗');
+      message.error(error.message || '報到失敗');
     }
   };
 

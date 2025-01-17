@@ -468,39 +468,33 @@ def check_in_participant(tournament_id, participant_id):
     try:
         app.logger.info(f"處理參賽者 {participant_id} 的報到請求")
         
-        # 檢查參賽者是否存在
-        participant = Participant.query.get(participant_id)
-        if not participant:
-            app.logger.error(f"找不到參賽者 ID: {participant_id}")
-            return jsonify({'error': f'找不到參賽者 ID: {participant_id}'}), 404
-            
+        participant = Participant.query.filter_by(
+            tournament_id=tournament_id,
+            id=participant_id
+        ).first_or_404()
+        
         # 更新報到狀態
         participant.checked_in = True
         participant.check_in_time = datetime.now()
         
-        try:
-            db.session.commit()
-            app.logger.info(f"參賽者 {participant.name} 報到成功")
-            
-            return jsonify({
-                'success': True,
-                'message': '報到成功',
-                'participant': participant.to_dict()
-            })
-            
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"儲存報到狀態時發生錯誤: {str(e)}")
-            return jsonify({
-                'success': False,
-                'error': f'儲存報到狀態時發生錯誤: {str(e)}'
-            }), 500
-            
-    except Exception as e:
-        app.logger.error(f"處理報到請求時發生錯誤: {str(e)}")
+        # 提交更改
+        db.session.commit()
+        
+        app.logger.info(f"參賽者 {participant.name} 報到成功")
+        
+        # 返回更新後的參賽者資料
         return jsonify({
-            'success': False,
-            'error': str(e)
+            'status': 'success',
+            'message': '報到成功',
+            'participant': participant.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"報到處理失敗: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
         }), 500
 
 # 取消報到功能路由
