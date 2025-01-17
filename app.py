@@ -452,22 +452,28 @@ def check_in_participant(tournament_id, participant_id):
             id=participant_id
         ).first_or_404()
         
-        # 如果已經報到，返回錯誤
-        if participant.checked_in:
+        # 從請求中獲取報到狀態
+        data = request.get_json()
+        new_check_in_status = data.get('checked_in', True)  # 默認為報到
+        
+        # 如果狀態沒有改變，返回錯誤
+        if participant.checked_in == new_check_in_status:
+            status_text = "已經報到" if new_check_in_status else "尚未報到"
             return jsonify({
-                'error': '參賽者已經報到',
+                'error': f'參賽者{status_text}',
                 'participant': participant.to_dict()
             }), 400
             
         # 更新報到狀態
-        participant.checked_in = True
-        participant.check_in_time = datetime.now()
+        participant.checked_in = new_check_in_status
+        participant.check_in_time = datetime.now() if new_check_in_status else None
         participant.updated_at = datetime.now()
         
         db.session.commit()
         
+        status_text = "報到" if new_check_in_status else "取消報到"
         return jsonify({
-            'message': f'參賽者 {participant.name} 報到成功',
+            'message': f'參賽者 {participant.name} {status_text}成功',
             'participant': participant.to_dict()
         })
         

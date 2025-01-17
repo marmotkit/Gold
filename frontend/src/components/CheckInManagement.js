@@ -117,37 +117,48 @@ function CheckInManagement({ tournament, onParticipantUpdated }) {
   const handleCancelCheckIn = async (participant) => {
     try {
       const response = await fetch(
-        `${buildApiUrl(`/tournaments/${tournament.id}/participants/${participant.id}/check-in`)}`,
+        buildApiUrl(`/tournaments/${tournament.id}/participants/${participant.id}/check-in`),
         {
-          method: 'DELETE',
+          method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
           },
+          body: JSON.stringify({ checked_in: false }),
           credentials: 'include'
         }
       );
 
       const data = await response.json();
       
-      if (data.status === 'success') {
-        // 更新本地狀態
-        setParticipants(prevParticipants => 
-          prevParticipants.map(p => 
-            p.id === participant.id ? data.participant : p
-          )
-        );
-        
-        // 通知其他組件更新
-        if (onParticipantUpdated) {
-          onParticipantUpdated(data.participant);
-        }
-      } else {
-        console.error('取消報到失敗:', data.message);
-        message.error(data.message || '取消報到失敗');
+      if (!response.ok) {
+        throw new Error(data.error || '取消報到失敗');
       }
+
+      // 更新本地狀態
+      setParticipants(prevParticipants => 
+        prevParticipants.map(p => 
+          p.id === participant.id ? { ...p, ...data.participant } : p
+        )
+      );
+      
+      // 通知父組件更新
+      if (onParticipantUpdated) {
+        onParticipantUpdated(data.participant);
+      }
+
+      setSnackbar({
+        open: true,
+        message: '取消報到成功',
+        severity: 'success'
+      });
+
     } catch (error) {
-      console.error('取消報到時發生錯誤:', error);
-      message.error('取消報到時發生錯誤');
+      console.error('取消報到錯誤:', error);
+      setSnackbar({
+        open: true,
+        message: error.message || '取消報到失敗',
+        severity: 'error'
+      });
     }
   };
 
