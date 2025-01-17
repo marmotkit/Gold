@@ -461,39 +461,33 @@ def check_in_participant(tournament_id, participant_id):
     try:
         app.logger.info(f"處理參賽者 {participant_id} 的報到請求")
         
+        # 在事務中處理報到
         participant = Participant.query.filter_by(
             tournament_id=tournament_id,
             id=participant_id
         ).first_or_404()
         
+        # 如果已經報到，直接返回
+        if participant.checked_in:
+            return jsonify(participant.to_dict())
+            
         # 更新報到狀態
         participant.checked_in = True
         participant.check_in_time = datetime.now()
         
         try:
-            # 提交更改
             db.session.commit()
             app.logger.info(f"參賽者 {participant.name} 報到成功")
-            
-            # 返回更新後的參賽者資料
-            return jsonify({
-                'status': 'success',
-                'message': '報到成功',
-                'participant': participant.to_dict()
-            })
+            return jsonify(participant.to_dict())
             
         except Exception as e:
             db.session.rollback()
-            app.logger.error(f"儲存報到狀態時發生錯誤: {str(e)}")
-            raise
+            app.logger.error(f"報到更新失敗: {str(e)}")
+            return jsonify({"error": "報到更新失敗"}), 500
             
     except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"報到處理失敗: {str(e)}")
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
+        app.logger.error(f"處理報到請求時發生錯誤: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 # 取消報到功能路由
 @app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>/check-in', methods=['DELETE'])
