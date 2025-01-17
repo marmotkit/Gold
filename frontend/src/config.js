@@ -3,7 +3,7 @@ const config = {
         API_URL: 'http://localhost:8000'
     },
     production: {
-        API_URL: 'https://gold-1-ccpj.onrender.com'
+        API_URL: 'https://gold-v00p.onrender.com'
     }
 };
 
