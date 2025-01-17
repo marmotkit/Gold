@@ -24,35 +24,29 @@ class DevelopmentConfig(Config):
     CORS_ORIGINS = ['http://localhost:3000']
 
 class ProductionConfig(Config):
-    DEBUG = True
+    DEBUG = False
+    
+    # 獲取數據庫 URL
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     if not SQLALCHEMY_DATABASE_URI:
-        raise ValueError("DATABASE_URL environment variable is not set")
-        
-    # 處理 Postgres URL
-    if SQLALCHEMY_DATABASE_URI.startswith('postgres://'):
+        logger.warning("DATABASE_URL not set, using SQLite")
+        SQLALCHEMY_DATABASE_URI = 'sqlite:///instance/golf.db'
+    elif SQLALCHEMY_DATABASE_URI.startswith('postgres://'):
         SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace('postgres://', 'postgresql://', 1)
     
-    logger.info(f"使用數據庫 URL: {SQLALCHEMY_DATABASE_URI}")
+    logger.info(f"Using database URL: {SQLALCHEMY_DATABASE_URI}")
     
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_size': 10,
         'max_overflow': 20,
         'pool_timeout': 60,
         'pool_recycle': 1800,
-        'pool_pre_ping': True,
-        'echo': True,
-        'connect_args': {
-            'connect_timeout': 10,
-            'keepalives': 1,
-            'keepalives_idle': 30,
-            'keepalives_interval': 10,
-            'keepalives_count': 5
-        }
+        'pool_pre_ping': True
     }
+    
     CORS_ORIGINS = [
-        'https://gold-1-ccpj.onrender.com',
-        'https://gold-v00p.onrender.com'
+        'https://gold-tawny.vercel.app',
+        'http://localhost:3000'
     ]
 
 config = {
