@@ -52,8 +52,7 @@ class Participant(db.Model):
             'display_order': self.display_order,
             'checked_in': self.checked_in,
             'check_in_time': self.check_in_time.isoformat() if self.check_in_time else None,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'check_in_status': 'checked_in' if self.checked_in else 'not_checked_in'
         }
 
     def __repr__(self):

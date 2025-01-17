@@ -146,13 +146,9 @@ def not_found_error(error):
     return jsonify(error='Resource not found'), 404
 
 # 健康檢查端點
-@app.route('/health', methods=['GET'])
+@app.route('/', methods=['HEAD', 'GET'])
 def health_check():
-    app.logger.info('收到健康檢查請求')
-    return jsonify({
-        'status': 'healthy',
-        'timestamp': datetime.now().isoformat()
-    }), 200
+    return '', 200
 
 @app.after_request
 def after_request(response):
@@ -461,7 +457,6 @@ def check_in_participant(tournament_id, participant_id):
     try:
         app.logger.info(f"處理參賽者 {participant_id} 的報到請求")
         
-        # 在事務中處理報到
         participant = Participant.query.filter_by(
             tournament_id=tournament_id,
             id=participant_id
@@ -469,7 +464,11 @@ def check_in_participant(tournament_id, participant_id):
         
         # 如果已經報到，直接返回
         if participant.checked_in:
-            return jsonify(participant.to_dict())
+            return jsonify({
+                'status': 'success',
+                'message': '已經報到',
+                'participant': participant.to_dict()
+            })
             
         # 更新報到狀態
         participant.checked_in = True
@@ -478,16 +477,29 @@ def check_in_participant(tournament_id, participant_id):
         try:
             db.session.commit()
             app.logger.info(f"參賽者 {participant.name} 報到成功")
-            return jsonify(participant.to_dict())
+            
+            return jsonify({
+                'status': 'success',
+                'message': '報到成功',
+                'participant': participant.to_dict()
+            })
             
         except Exception as e:
             db.session.rollback()
             app.logger.error(f"報到更新失敗: {str(e)}")
-            return jsonify({"error": "報到更新失敗"}), 500
+            return jsonify({
+                'status': 'error',
+                'message': '報到更新失敗',
+                'error': str(e)
+            }), 500
             
     except Exception as e:
         app.logger.error(f"處理報到請求時發生錯誤: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            'status': 'error',
+            'message': '處理報到請求時發生錯誤',
+            'error': str(e)
+        }), 500
 
 # 取消報到功能路由
 @app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>/check-in', methods=['DELETE'])
