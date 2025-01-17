@@ -71,6 +71,13 @@ config_name = os.environ.get('FLASK_ENV', 'development')
 
 # 初始化 Flask 應用
 app = Flask(__name__, static_folder='frontend/build', static_url_path='')
+
+# 首先設置數據庫 URL
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
+    app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgres://', 'postgresql://', 1)
+
+# 然後再載入其他配置
 app.config.from_object(config[config_name])
 config[config_name].init_app(app)
 
@@ -97,10 +104,6 @@ CORS(app, resources={
         "supports_credentials": True
     }
 })
-
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
-if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
-    app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgres://', 'postgresql://', 1)
 
 @app.after_request
 def after_request(response):
