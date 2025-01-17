@@ -329,55 +329,26 @@ function DynamicGrouping({ tournament }) {
     }
   };
 
-  const handleExportPDF = async () => {
+  const handleExportDiagram = async () => {
     try {
-      setLoading(true);
-      const response = await fetch(
-        buildApiUrl(`/tournaments/${tournament.id}/export_groups_pdf`),
-        {
-          method: 'GET',
-          headers: {
-            'Accept': 'text/html'
-          }
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('匯出分組圖失敗');
-      }
-
-      // 取得檔案名稱
-      const contentDisposition = response.headers.get('Content-Disposition');
-      const filename = contentDisposition
-        ? decodeURIComponent(contentDisposition.split('filename=')[1].replace(/"/g, ''))
-        : '分組圖.html';
-
-      // 下載檔案
+      const response = await fetch(`${API_URL}/tournaments/${tournamentId}/export_groups_diagram`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+      
+      if (!response.ok) throw new Error('匯出失敗');
+      
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename;
+      a.download = `${tournamentName}_分組圖.html`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      setSnackbar({
-        open: true,
-        message: '分組圖已匯出',
-        severity: 'success'
-      });
-
     } catch (error) {
-      console.error('匯出分組圖錯誤:', error);
-      setSnackbar({
-        open: true,
-        message: error.message,
-        severity: 'error'
-      });
-    } finally {
-      setLoading(false);
+      console.error('匯出分組圖時發生錯誤:', error);
+      message.error('匯出分組圖失敗');
     }
   };
 
@@ -420,7 +391,7 @@ function DynamicGrouping({ tournament }) {
         <Button
           variant="contained"
           startIcon={<PictureAsPdfIcon />}
-          onClick={handleExportPDF}
+          onClick={handleExportDiagram}
           disabled={loading}
           sx={{ ml: 1 }}
         >
