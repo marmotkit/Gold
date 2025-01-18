@@ -13,5 +13,10 @@ console.log('Current environment:', environment);
 const API_URL = config[environment].API_URL;
 console.log('API URL:', API_URL);
 
-export const buildApiUrl = (path) => `${API_URL}${path}`;
+export const buildApiUrl = (path) => {
+    const baseUrl = config[environment].API_URL;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    return `${baseUrl}${cleanPath}`.replace(/([^:]\/)\/+/g, '$1');
+};
+
 export default config[environment];

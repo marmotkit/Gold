@@ -14,7 +14,7 @@ import {
   IconButton,
   Grid,
   Paper,
-  Space,
+  Stack,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
@@ -416,7 +416,7 @@ function DynamicGrouping({ tournament, onGroupsUpdated }) {
   };
 
   const renderParticipantActions = (participant) => (
-    <Space>
+    <Stack spacing={2}>
       {participant.checked_in ? (
         <Button 
           type="primary" 
@@ -433,7 +433,7 @@ function DynamicGrouping({ tournament, onGroupsUpdated }) {
           報到
         </Button>
       )}
-    </Space>
+    </Stack>
   );
 
   if (loading) return <CircularProgress />;
