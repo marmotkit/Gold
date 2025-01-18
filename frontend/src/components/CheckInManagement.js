@@ -68,9 +68,9 @@ function CheckInManagement({ tournament, onParticipantUpdated }) {
   // 處理報到和取消報到的統一函數
   const handleCheckInToggle = async (participant) => {
     try {
+        const newStatus = !participant.checked_in;
         console.log('發送報到請求:', {
-            participant_id: participant.id,
-            checked_in: !participant.checked_in
+            checked_in: newStatus
         });
 
         const response = await fetch(
@@ -82,9 +82,7 @@ function CheckInManagement({ tournament, onParticipantUpdated }) {
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({ 
-                    checked_in: !participant.checked_in,
-                    participant_id: participant.id,
-                    tournament_id: tournament.id
+                    checked_in: newStatus
                 }),
                 credentials: 'include'
             }
@@ -100,7 +98,7 @@ function CheckInManagement({ tournament, onParticipantUpdated }) {
         // 更新本地狀態
         setParticipants(prevParticipants => 
             prevParticipants.map(p => 
-                p.id === participant.id ? { ...p, checked_in: !participant.checked_in } : p
+                p.id === participant.id ? { ...p, checked_in: newStatus } : p
             )
         );
         
@@ -108,7 +106,7 @@ function CheckInManagement({ tournament, onParticipantUpdated }) {
         if (onParticipantUpdated) {
             onParticipantUpdated({
                 ...participant,
-                checked_in: !participant.checked_in
+                checked_in: newStatus
             });
         }
 
