@@ -458,34 +458,30 @@ def check_in_participant(tournament_id, participant_id):
         data = request.get_json()
         app.logger.info(f"接收到的數據: {data}")
         
-        new_check_in_status = data.get('checked_in')
-        if new_check_in_status is None:
-            return jsonify({
-                'error': '缺少 checked_in 參數'
-            }), 400
+        if 'checked_in' not in data:
+            app.logger.error("缺少 checked_in 參數")
+            return jsonify({'error': '缺少 checked_in 參數'}), 400
             
+        new_check_in_status = bool(data['checked_in'])
+        app.logger.info(f"新的報到狀態: {new_check_in_status}")
+        
         # 更新報到狀態
         participant.checked_in = new_check_in_status
         participant.check_in_time = datetime.now() if new_check_in_status else None
         
-        try:
-            db.session.commit()
-            
-            status_text = "報到" if new_check_in_status else "取消報到"
-            response_data = {
-                'message': f'參賽者 {participant.name} {status_text}成功',
-                'participant': participant.to_dict()
-            }
-            
-            app.logger.info(f"操作成功: {response_data}")
-            return jsonify(response_data)
-            
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"數據庫更新失敗: {str(e)}")
-            return jsonify({'error': '數據庫更新失敗'}), 500
+        db.session.commit()
+        
+        status_text = "報到" if new_check_in_status else "取消報到"
+        response_data = {
+            'message': f'參賽者 {participant.name} {status_text}成功',
+            'participant': participant.to_dict()
+        }
+        
+        app.logger.info(f"操作成功: {response_data}")
+        return jsonify(response_data)
         
     except Exception as e:
+        db.session.rollback()
         app.logger.error(f"報到處理失敗: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
