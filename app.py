@@ -458,11 +458,12 @@ def check_in_participant(tournament_id, participant_id):
         data = request.get_json()
         app.logger.info(f"接收到的數據: {data}")
         
-        if 'checked_in' not in data:
-            app.logger.error("缺少 checked_in 參數")
-            return jsonify({'error': '缺少 checked_in 參數'}), 400
+        if 'check_in_status' not in data:
+            app.logger.error("缺少 check_in_status 參數")
+            return jsonify({'error': '缺少報到狀態參數'}), 400
             
-        new_check_in_status = bool(data['checked_in'])
+        # 轉換狀態
+        new_check_in_status = (data['check_in_status'] == 'checked_in')
         app.logger.info(f"新的報到狀態: {new_check_in_status}")
         
         # 更新報到狀態
