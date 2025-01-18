@@ -116,49 +116,58 @@ function CheckInManagement({ tournament, onParticipantUpdated }) {
   // 處理取消報到
   const handleCancelCheckIn = async (participant) => {
     try {
-      const response = await fetch(
-        buildApiUrl(`/tournaments/${tournament.id}/participants/${participant.id}/check-in`),
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ checked_in: false }),
-          credentials: 'include'
+        const response = await fetch(
+            buildApiUrl(`/tournaments/${tournament.id}/participants/${participant.id}/check-in`),
+            {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    checked_in: false,
+                    tournament_id: tournament.id,
+                    participant_id: participant.id
+                }),
+                credentials: 'include'
+            }
+        );
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || '取消報到失敗');
         }
-      );
 
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || '取消報到失敗');
-      }
+        const data = await response.json();
+        
+        // 更新本地狀態
+        setParticipants(prevParticipants => 
+            prevParticipants.map(p => 
+                p.id === participant.id ? { ...p, checked_in: false } : p
+            )
+        );
+        
+        // 通知父組件
+        if (onParticipantUpdated) {
+            onParticipantUpdated({
+                ...participant,
+                checked_in: false
+            });
+        }
 
-      // 更新本地狀態
-      setParticipants(prevParticipants => 
-        prevParticipants.map(p => 
-          p.id === participant.id ? { ...p, ...data.participant } : p
-        )
-      );
-      
-      // 通知父組件更新
-      if (onParticipantUpdated) {
-        onParticipantUpdated(data.participant);
-      }
-
-      setSnackbar({
-        open: true,
-        message: '取消報到成功',
-        severity: 'success'
-      });
+        setSnackbar({
+            open: true,
+            message: '取消報到成功',
+            severity: 'success'
+        });
 
     } catch (error) {
-      console.error('取消報到錯誤:', error);
-      setSnackbar({
-        open: true,
-        message: error.message || '取消報到失敗',
-        severity: 'error'
-      });
+        console.error('取消報到錯誤:', error);
+        setSnackbar({
+            open: true,
+            message: error.message || '取消報到失敗',
+            severity: 'error'
+        });
     }
   };
 

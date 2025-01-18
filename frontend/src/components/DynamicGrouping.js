@@ -14,7 +14,6 @@ import {
   IconButton,
   Grid,
   Paper,
-  Stack,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
@@ -414,27 +413,6 @@ function DynamicGrouping({ tournament, onGroupsUpdated }) {
       return newLocked;
     });
   };
-
-  const renderParticipantActions = (participant) => (
-    <Stack spacing={2}>
-      {participant.checked_in ? (
-        <Button 
-          type="primary" 
-          danger
-          onClick={() => handleCheckIn(participant)}
-        >
-          取消報到
-        </Button>
-      ) : (
-        <Button 
-          type="primary"
-          onClick={() => handleCheckIn(participant)}
-        >
-          報到
-        </Button>
-      )}
-    </Stack>
-  );
 
   if (loading) return <CircularProgress />;
   if (error) return <Typography color="error">{error}</Typography>;
