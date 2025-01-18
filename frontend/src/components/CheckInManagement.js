@@ -65,56 +65,8 @@ function CheckInManagement({ tournament, onParticipantUpdated }) {
     }
   };
 
-  // 處理報到
-  const handleCheckIn = async (participant) => {
-    try {
-      const response = await fetch(
-        buildApiUrl(`/tournaments/${tournament.id}/participants/${participant.id}/check-in`),
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include'
-        }
-      );
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || '報到失敗');
-      }
-
-      // 更新本地狀態
-      setParticipants(prevParticipants => 
-        prevParticipants.map(p => 
-          p.id === participant.id ? { ...p, ...data.participant } : p
-        )
-      );
-
-      // 通知父組件更新
-      if (onParticipantUpdated) {
-        onParticipantUpdated(data.participant);
-      }
-
-      setSnackbar({
-        open: true,
-        message: '報到成功',
-        severity: 'success'
-      });
-
-    } catch (error) {
-      console.error('報到錯誤:', error);
-      setSnackbar({
-        open: true,
-        message: error.message || '報到失敗',
-        severity: 'error'
-      });
-    }
-  };
-
-  // 處理取消報到
-  const handleCancelCheckIn = async (participant) => {
+  // 處理報到和取消報到的統一函數
+  const handleCheckInToggle = async (participant) => {
     try {
         const response = await fetch(
             buildApiUrl(`/tournaments/${tournament.id}/participants/${participant.id}/check-in`),
@@ -125,9 +77,7 @@ function CheckInManagement({ tournament, onParticipantUpdated }) {
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({ 
-                    checked_in: false,
-                    tournament_id: tournament.id,
-                    participant_id: participant.id
+                    checked_in: !participant.checked_in 
                 }),
                 credentials: 'include'
             }
@@ -135,7 +85,7 @@ function CheckInManagement({ tournament, onParticipantUpdated }) {
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.error || '取消報到失敗');
+            throw new Error(errorData.error || '操作失敗');
         }
 
         const data = await response.json();
@@ -143,29 +93,26 @@ function CheckInManagement({ tournament, onParticipantUpdated }) {
         // 更新本地狀態
         setParticipants(prevParticipants => 
             prevParticipants.map(p => 
-                p.id === participant.id ? { ...p, checked_in: false } : p
+                p.id === participant.id ? { ...p, ...data.participant } : p
             )
         );
         
         // 通知父組件
         if (onParticipantUpdated) {
-            onParticipantUpdated({
-                ...participant,
-                checked_in: false
-            });
+            onParticipantUpdated(data.participant);
         }
 
         setSnackbar({
             open: true,
-            message: '取消報到成功',
+            message: data.message || (participant.checked_in ? '取消報到成功' : '報到成功'),
             severity: 'success'
         });
 
     } catch (error) {
-        console.error('取消報到錯誤:', error);
+        console.error('報到操作錯誤:', error);
         setSnackbar({
             open: true,
-            message: error.message || '取消報到失敗',
+            message: error.message || '操作失敗',
             severity: 'error'
         });
     }
@@ -302,9 +249,7 @@ function CheckInManagement({ tournament, onParticipantUpdated }) {
         <Button
           variant="contained"
           color={participant.checked_in ? "warning" : "primary"}
-          onClick={() => participant.checked_in 
-            ? handleCancelCheckIn(participant) 
-            : handleCheckIn(participant)}
+          onClick={() => handleCheckInToggle(participant)}
           disabled={loading}
         >
           {participant.checked_in ? "取消報到" : "報到"}
