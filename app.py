@@ -446,6 +446,8 @@ def delete_all_participants(tournament_id):
 @app.route('/tournaments/<int:tournament_id>/participants/<int:participant_id>/check-in', methods=['PUT'])
 def check_in_participant(tournament_id, participant_id):
     try:
+        app.logger.info(f"處理報到請求: tournament_id={tournament_id}, participant_id={participant_id}")
+        
         # 查找參賽者
         participant = Participant.query.filter_by(
             tournament_id=tournament_id,
@@ -454,33 +456,38 @@ def check_in_participant(tournament_id, participant_id):
         
         # 從請求中獲取報到狀態
         data = request.get_json()
-        new_check_in_status = data.get('checked_in', True)  # 默認為報到
+        app.logger.info(f"接收到的數據: {data}")
         
-        # 如果狀態沒有改變，返回錯誤
-        if participant.checked_in == new_check_in_status:
-            status_text = "已經報到" if new_check_in_status else "尚未報到"
+        new_check_in_status = data.get('checked_in')
+        if new_check_in_status is None:
             return jsonify({
-                'error': f'參賽者{status_text}',
-                'participant': participant.to_dict()
+                'error': '缺少 checked_in 參數'
             }), 400
             
         # 更新報到狀態
         participant.checked_in = new_check_in_status
         participant.check_in_time = datetime.now() if new_check_in_status else None
-        participant.updated_at = datetime.now()
         
-        db.session.commit()
-        
-        status_text = "報到" if new_check_in_status else "取消報到"
-        return jsonify({
-            'message': f'參賽者 {participant.name} {status_text}成功',
-            'participant': participant.to_dict()
-        })
+        try:
+            db.session.commit()
+            
+            status_text = "報到" if new_check_in_status else "取消報到"
+            response_data = {
+                'message': f'參賽者 {participant.name} {status_text}成功',
+                'participant': participant.to_dict()
+            }
+            
+            app.logger.info(f"操作成功: {response_data}")
+            return jsonify(response_data)
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"數據庫更新失敗: {str(e)}")
+            return jsonify({'error': '數據庫更新失敗'}), 500
         
     except Exception as e:
-        db.session.rollback()
         app.logger.error(f"報到處理失敗: {str(e)}")
-        return jsonify({'error': '報到處理失敗'}), 500
+        return jsonify({'error': str(e)}), 500
 
 # 自動分組
 @app.route('/tournaments/<int:tournament_id>/auto-group', methods=['POST'])
