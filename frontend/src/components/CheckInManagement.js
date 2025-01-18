@@ -70,7 +70,7 @@ function CheckInManagement({ tournament, onParticipantUpdated }) {
     try {
         const newStatus = !participant.checked_in;
         console.log('發送報到請求:', {
-            checked_in: newStatus
+            check_in_status: newStatus ? 'checked_in' : 'not_checked_in'
         });
 
         const response = await fetch(
@@ -82,7 +82,8 @@ function CheckInManagement({ tournament, onParticipantUpdated }) {
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({ 
-                    checked_in: newStatus
+                    check_in_status: newStatus ? 'checked_in' : 'not_checked_in',
+                    check_in_time: new Date().toISOString()
                 }),
                 credentials: 'include'
             }
@@ -112,7 +113,7 @@ function CheckInManagement({ tournament, onParticipantUpdated }) {
 
         setSnackbar({
             open: true,
-            message: data.message || (participant.checked_in ? '取消報到成功' : '報到成功'),
+            message: newStatus ? '報到成功' : '取消報到成功',
             severity: 'success'
         });
 

@@ -151,50 +151,56 @@ function DynamicGrouping({ tournament, onGroupsUpdated }) {
   // 處理報到狀態切換
   const handleToggleCheckIn = async (participant) => {
     try {
-      const response = await fetch(
-        buildApiUrl(`/tournaments/${tournament.id}/participants/${participant.id}/check-in`),
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({ 
-            checked_in: !participant.checked_in
-          }),
-          credentials: 'include'
+        const newStatus = !participant.checked_in;
+        console.log('發送報到請求:', {
+            check_in_status: newStatus ? 'checked_in' : 'not_checked_in'
+        });
+
+        const response = await fetch(
+            buildApiUrl(`/tournaments/${tournament.id}/participants/${participant.id}/check-in`),
+            {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    check_in_status: newStatus ? 'checked_in' : 'not_checked_in',
+                    check_in_time: new Date().toISOString()
+                }),
+                credentials: 'include'
+            }
+        );
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || '報到操作失敗');
         }
-      );
 
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || '報到操作失敗');
-      }
+        // 更新本地狀態
+        setGroups(prevGroups => 
+            prevGroups.map(group => ({
+                ...group,
+                participants: group.participants.map(p => 
+                    p.id === participant.id ? { ...p, checked_in: newStatus } : p
+                )
+            }))
+        );
 
-      // 更新本地狀態
-      setGroups(prevGroups => 
-        prevGroups.map(group => ({
-          ...group,
-          participants: group.participants.map(p => 
-            p.id === participant.id ? { ...p, checked_in: !p.checked_in } : p
-          )
-        }))
-      );
-
-      setSnackbar({
-        open: true,
-        message: participant.checked_in ? '取消報到成功' : '報到成功',
-        severity: 'success'
-      });
+        setSnackbar({
+            open: true,
+            message: newStatus ? '報到成功' : '取消報到成功',
+            severity: 'success'
+        });
 
     } catch (error) {
-      console.error('報到操作錯誤:', error);
-      setSnackbar({
-        open: true,
-        message: error.message || '報到操作失敗',
-        severity: 'error'
-      });
+        console.error('報到操作錯誤:', error);
+        setSnackbar({
+            open: true,
+            message: error.message || '報到操作失敗',
+            severity: 'error'
+        });
     }
   };
 
