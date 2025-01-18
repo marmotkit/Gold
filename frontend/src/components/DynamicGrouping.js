@@ -157,15 +157,19 @@ function DynamicGrouping({ tournament, onGroupsUpdated }) {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json'
           },
-          body: JSON.stringify({
+          body: JSON.stringify({ 
             checked_in: !participant.checked_in
-          })
+          }),
+          credentials: 'include'
         }
       );
 
+      const data = await response.json();
+      
       if (!response.ok) {
-        throw new Error('更新報到狀態失敗');
+        throw new Error(data.error || '報到操作失敗');
       }
 
       // 更新本地狀態
@@ -173,24 +177,22 @@ function DynamicGrouping({ tournament, onGroupsUpdated }) {
         prevGroups.map(group => ({
           ...group,
           participants: group.participants.map(p => 
-            p.id === participant.id
-              ? { ...p, checked_in: !p.checked_in }
-              : p
+            p.id === participant.id ? { ...p, checked_in: !p.checked_in } : p
           )
         }))
       );
 
       setSnackbar({
         open: true,
-        message: '報到狀態已更新',
+        message: participant.checked_in ? '取消報到成功' : '報到成功',
         severity: 'success'
       });
 
     } catch (error) {
-      console.error('更新報到狀態錯誤:', error);
+      console.error('報到操作錯誤:', error);
       setSnackbar({
         open: true,
-        message: error.message,
+        message: error.message || '報到操作失敗',
         severity: 'error'
       });
     }
